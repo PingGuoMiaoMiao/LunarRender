@@ -482,7 +482,7 @@ git commit -m "feat: add textured rotating cube demo"
 
 Make these exact corrections:
 
-1. In `README.md`, show the runtime command as `.\_build\native\release\build\cmd\lunarrender\lunarrender.exe --self-test`, describe the checkerboard cube, and state that resizing uses framebuffer pixels.
+1. In `README.md`, use `.\scripts\resolve-runtime.ps1` before launching the executable so both standalone and temporary-workspace MoonBit builds work; describe the checkerboard cube and state that resizing uses framebuffer pixels.
 2. In `ARCHITECTURE.md`, add the flow `MoonBit data -> typed handle -> OpenGL slot -> draw_frame`, and state that texture/material/mesh ownership belongs to the OpenGL backend.
 3. In `FFI_BINDINGS.md`, document `#borrow` for bytes/fixed arrays, that C copies texture bytes into a GL texture during upload, that remove/shutdown release native objects, and that `glViewport` uses the current framebuffer dimensions.
 4. In `ROADMAP.md`, mark the four delivered items as the “渲染基础扩展” milestone and leave game, MoonMC integration, and MMD skinning as later work.
@@ -506,7 +506,8 @@ Expected: all commands exit with code 0.
 Run:
 
 ```powershell
-.\_build\native\release\build\cmd\lunarrender\lunarrender.exe --self-test
+$exe = .\scripts\resolve-runtime.ps1
+& $exe --self-test
 ```
 
 Expected logs include: window creation, OpenGL version, texture upload, material upload, mesh upload, OpenGL backend destruction, and platform window destruction. The process must exit with code 0 after approximately one second.

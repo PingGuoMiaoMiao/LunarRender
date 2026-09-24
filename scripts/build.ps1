@@ -51,4 +51,11 @@ if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 & $moonCommand.Source -C $repoRoot build --target native --release 'cmd/lunarrender'
-exit $LASTEXITCODE
+if ($LASTEXITCODE -ne 0) {
+  exit $LASTEXITCODE
+}
+
+$runtimeResolver = Join-Path $repoRoot 'scripts\resolve-runtime.ps1'
+$runtimeExecutable = & $runtimeResolver -RepoRoot $repoRoot
+Write-Output ("LunarRender executable: {0}" -f $runtimeExecutable)
+exit 0

@@ -40,10 +40,18 @@ moon build --target native --release cmd/lunarrender
 .\scripts\build.ps1
 ```
 
+构建产物路径会根据 MoonBit 是否处于临时 workspace 自动变化。使用解析脚本获取唯一的 Release 可执行文件：
+
+```powershell
+$exe = .\scripts\resolve-runtime.ps1
+& $exe
+```
+
 ## 运行
 
 ```powershell
-.\_build\native\release\build\cmd\lunarrender\lunarrender.exe
+$exe = .\scripts\resolve-runtime.ps1
+& $exe
 ```
 
 示例窗口显示带程序生成棋盘材质的旋转立方体。按 `Esc` 退出。窗口变化使用 GLFW framebuffer 像素尺寸更新 `glViewport`。运行日志会记录窗口创建、OpenGL 后端版本、纹理/材质/网格上传和反向销毁顺序。
@@ -51,7 +59,8 @@ moon build --target native --release cmd/lunarrender
 自动化验证可以使用 `--self-test`，窗口运行约一秒后按正常顺序退出：
 
 ```powershell
-.\_build\native\release\build\cmd\lunarrender\lunarrender.exe --self-test
+$exe = .\scripts\resolve-runtime.ps1
+& $exe --self-test
 ```
 
 ## 公共接口

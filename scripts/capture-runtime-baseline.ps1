@@ -6,9 +6,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$defaultExecutable = Join-Path $repoRoot '_build\native\release\build\cmd\lunarrender\lunarrender.exe'
 $runtimeExecutable = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
-  $defaultExecutable
+  $runtimeResolver = Join-Path $repoRoot 'scripts\resolve-runtime.ps1'
+  & $runtimeResolver -RepoRoot $repoRoot
 } else {
   [IO.Path]::GetFullPath($ExecutablePath)
 }

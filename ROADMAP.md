@@ -32,7 +32,7 @@
 - 新增资源类型没有引入游戏字段，句柄类型不能交叉传递。
 - RGBA 长度、材质引用、网格引用和 framebuffer 尺寸均有校验。
 - OpenGL 日志确认纹理、材质和网格上传及逆序销毁。
-- `.\_build\native\release\build\cmd\lunarrender\lunarrender.exe --self-test` 退出码为 0。
+- `& (.\scripts\resolve-runtime.ps1) --self-test` 退出码为 0，无论是否存在临时 `moon.work` 都能找到唯一产物。
 
 ## 阶段三：游戏组合层接入（后续）
 

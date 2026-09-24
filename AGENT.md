@@ -18,7 +18,7 @@
 
 - 使用 MoonMC 中实际存在的包、字段、函数和接口；禁止猜测标识符的大小写、格式或结构。
 - 变更 FFI 时同步修改 `platform/native/platform.mbt`、对应 C stub、`moon.pkg`、`FFI_BINDINGS.md` 和测试/日志入口。
-- 所有 C FFI 符号统一使用 `lunarrender_*`；LunarRender 中不得出现旧的 `moonmc_*` FFI 名称。
+- 所有 C FFI 符号统一使用 `lunarrender_*`；LunarRender 中不得保留旧项目的 C FFI 符号。
 - C 侧不暴露 GLFW/OpenGL 指针和 MoonBit 结构体内部布局。所有资源都必须有销毁路径。
 - 默认构建不能要求 PMX、VMD、私有纹理或生成 MMD C 文件。
 - 不读取、保存、输出或请求 GitHub、Mooncakes 或其他凭据。

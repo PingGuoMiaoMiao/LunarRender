@@ -25,7 +25,7 @@ lunarrender_image_decode_rgba
 lunarrender_save_write_temp
 ```
 
-LunarRender 不得继续使用 `moonmc_*` 前缀。MoonMC 核心没有任何 C FFI。
+LunarRender 不得继续使用旧项目的 C FFI 前缀。MoonMC 核心没有任何 C FFI。
 
 ## MoonBit/C 边界
 

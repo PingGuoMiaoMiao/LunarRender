@@ -1,0 +1,15 @@
+MoonMC texture attribution
+
+The four PNG files in this directory are copied from OpenGameArt's
+"16x16 Block Texture Set":
+https://opengameart.org/content/16x16-block-texture-set
+
+The source page marks this texture set as CC0. The files used by MoonMC are:
+
+- stone_generic.png
+- dirt.png
+- grass_side.png
+- grass_top.png
+
+MoonMC uses these files as a small fixed atlas for the native MVP. They are
+not Mojang or Minecraft Java Edition 1.21 assets.

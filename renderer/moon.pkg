@@ -1,0 +1,16 @@
+supported_targets = "native"
+
+import {
+  "PingGuoMiaoMiao/LunarRender/platform/native",
+  "PingGuoMiaoMiao/MoonMC/core/mesh",
+  "PingGuoMiaoMiao/MoonMC/core/world",
+  "PingGuoMiaoMiao/MoonMC/core/render",
+}
+
+options(
+  link: {
+    "native": {
+      "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib",
+    },
+  },
+)

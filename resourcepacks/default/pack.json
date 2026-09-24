@@ -1,0 +1,10 @@
+{
+  "name": "MoonMC Default",
+  "format_version": 1,
+  "textures": {
+    "stone": "textures/blocks/stone.png",
+    "dirt": "textures/blocks/dirt.png",
+    "grass_side": "textures/blocks/grass_side.png",
+    "grass_top": "textures/blocks/grass_top.png"
+  }
+}

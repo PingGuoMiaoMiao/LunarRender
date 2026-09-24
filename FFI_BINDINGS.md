@@ -68,10 +68,11 @@ MoonBit native 链接需要 GLFW、GLAD 静态库和 Windows 系统库。具体 
 
 ## 4. 参数所有权
 
-- 只读的 `FixedArray[Float]` 和 `Bytes` FFI 参数使用 `#borrow`。
+- 只读的 `FixedArray[Float]` 和 `Bytes` FFI 参数使用 `#borrow`；当前声明包括 `rgba`、`tint`、`vertices` 和 `view_projection`。
 - C 代码不得保存 MoonBit 数组、字符串或字节缓冲区的指针到当前调用之外。
-- OpenGL VBO 上传完成后，GPU 资源拥有自己的数据；C 不依赖 MoonBit 缓冲区继续存在。
-- `Renderer` 的资源键由 MoonBit 传入，C 只在槽位表中保存整数键和 OpenGL 句柄。
+- `glTexImage2D` 和 `glBufferData` 在 FFI 调用期间读取数据；调用返回后，OpenGL texture/VBO 拥有自己的 GPU 数据，C 不依赖 MoonBit 缓冲区继续存在。
+- MoonBit 只传入 `MeshHandle`、`TextureHandle` 和 `MaterialHandle`，C 只在独立槽位表中保存整数键和 OpenGL 句柄。
+- 纹理 RGBA 字节数在 MoonBit 校验为 `width * height * 4`；C 仍拒绝空指针、非正尺寸和 OpenGL 错误。
 
 ## 5. 生命周期和错误阶段
 
@@ -79,10 +80,10 @@ MoonBit native 链接需要 GLFW、GLAD 静态库和 Windows 系统库。具体 
 window_create
 → OpenGL context 已存在
 → lunarrender_opengl_init / GLAD
-→ Shader / VAO / VBO 创建
-→ upload_mesh
-→ draw_frame
-→ remove_mesh
+→ Shader / VAO / VBO / texture 槽位初始化
+→ upload_texture → upload_material → upload_mesh
+→ draw_frame(view_projection, framebuffer_width, framebuffer_height)
+→ remove_mesh → remove_material → remove_texture
 → lunarrender_opengl_shutdown
 → window_destroy
 ```
@@ -92,10 +93,13 @@ window_create
 - GLFW 初始化或窗口创建失败。
 - OpenGL context 或 GLAD 加载失败。
 - Shader 编译或程序链接失败。
-- VAO/VBO 创建、数据上传或 OpenGL 错误失败。
+- VAO/VBO/texture 创建、数据上传或 OpenGL 错误失败。
+- 材质引用不存在的纹理，或网格引用不存在的材质。
 - 窗口销毁后继续调用后端。
 
-后端的 `shutdown` 必须先释放 OpenGL 对象，再销毁窗口。重复销毁应安全返回；窗口销毁之后不得再执行 `draw_frame` 或 `upload_mesh`。
+后端的 `shutdown` 必须释放网格 VAO/VBO、材质槽位、纹理对象和 Shader，再销毁窗口。重复移除和重复 shutdown 应安全返回；窗口销毁之后不得再执行 `draw_frame` 或任何资源上传。
+
+`draw_frame` 只接受正 framebuffer 尺寸并调用 `glViewport`。窗口最小化而导致尺寸为 0 时，示例跳过当前绘制；窗口恢复后重新读取尺寸。
 
 ## 6. 验证
 

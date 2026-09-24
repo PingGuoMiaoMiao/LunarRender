@@ -39,6 +39,7 @@ LunarRender 不导入 `PingGuoMiaoMiao/MoonMC`。MoonMC 拥有世界、区块、
 - `vertices`：交错的 `FixedArray[Float]`。
 - `vertex_count`：顶点数量。
 - `floats_per_vertex`：固定为 `6`。
+- `material`：可选的 `MaterialHandle`。
 
 每个顶点排列为：
 
@@ -46,13 +47,15 @@ LunarRender 不导入 `PingGuoMiaoMiao/MoonMC`。MoonMC 拥有世界、区块、
 position.x position.y position.z uv.u uv.v shade
 ```
 
-`renderer.FrameData` 保存严格 16 个 Float 的列主序视图投影矩阵。公共层只校验数据完整性，不创建 VAO、VBO 或纹理。
+`renderer.FrameData` 保存严格 16 个 Float 的列主序视图投影矩阵，以及当前 framebuffer 的正整数宽高。公共层只校验数据完整性，不创建 VAO、VBO 或纹理。
+
+公共层还定义三类互不混用的资源句柄：`MeshHandle`、`TextureHandle` 和 `MaterialHandle`。纹理是严格 `width × height × 4` 的 RGBA8 字节；材质保存可选纹理句柄、4 通道 tint 和透明模式。句柄只表达资源命名空间，不暴露 OpenGL 对象。
 
 ## 5. OpenGL 后端
 
-`backend/opengl` 创建和销毁 Shader、VAO、VBO，并通过整数资源槽位保存通用网格。资源键只属于渲染器，不解释为区块坐标、实体 ID 或物品槽位。
+`backend/opengl` 创建和销毁 Shader、VAO、VBO、纹理，并通过三套独立的有限槽位保存网格、材质和纹理。MoonBit 的强类型句柄在进入 C FFI 前转换为整数键；资源引用由 C 层验证，未上传的纹理或材质不会创建网格对象。
 
-当前后端使用固定的 6 Float 顶点布局和无外部纹理的示例 Shader。后续增加材质、法线、骨骼或实例数据时，应增加明确的顶点格式，而不是把游戏字段写入 `MeshData`。
+当前后端使用固定的 6 Float 顶点布局和 RGBA 纹理 Shader。`Opaque` 关闭混合，`Blend` 使用 `GL_SRC_ALPHA` 与 `GL_ONE_MINUS_SRC_ALPHA`；深度测试始终开启。后续增加法线、骨骼或实例数据时，应增加明确的顶点格式，而不是把游戏字段写入 `MeshData`。
 
 ## 6. 平台层
 
@@ -61,16 +64,20 @@ position.x position.y position.z uv.u uv.v shade
 ## 7. 默认数据流
 
 ```text
-应用构造 MeshData / FrameData
-→ platform 创建窗口和 OpenGL context
+应用构造 TextureData / MaterialData / MeshData / FrameData
+→ platform 创建窗口、OpenGL context 和事件源
 → backend/opengl 初始化 Shader 和资源槽位
-→ upload_mesh(key, mesh)
-→ 每帧 poll_events
-→ draw_frame(frame)
+→ upload_texture(TextureHandle, TextureData)
+→ upload_material(MaterialHandle, MaterialData)
+→ upload_mesh(MeshHandle, MeshData)
+→ 每帧 poll_events 并读取 framebuffer 宽高
+→ draw_frame(FrameData) / glViewport / glDrawArrays
 → swap_buffers
-→ remove_mesh / backend shutdown
-→ window destroy
+→ remove_mesh → remove_material → remove_texture
+→ backend shutdown → window destroy
 ```
+
+数据所有权边界固定为：应用/MoonBit 只生成 CPU 数据，OpenGL 后端在上传时复制纹理和顶点数据到 GPU；窗口和 GPU 生命周期不由 `renderer` 公共层管理。
 
 ## 8. MMD 边界
 

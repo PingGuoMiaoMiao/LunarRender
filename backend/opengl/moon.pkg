@@ -1,0 +1,16 @@
+supported_targets = "native"
+
+import {
+  "PingGuoMiaoMiao/LunarRender/renderer"
+}
+
+options(
+  "native-stub": ["opengl.c"],
+  link: {
+    "native": {
+      "cc-flags": "/I third_party/glad-generated/include /I third_party/glfw/include",
+      "stub-cc-flags": "/I third_party/glad-generated/include /I third_party/glfw/include",
+      "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib",
+    },
+  },
+)

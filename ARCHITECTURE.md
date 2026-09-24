@@ -1,84 +1,77 @@
-# LunarRender Architecture
+# LunarRender 架构
 
-## 1. 角色
+## 1. 定位
 
-LunarRender 是 MoonMC 的 Windows native/OpenGL 客户端，不是世界逻辑仓库。它通过 Mooncakes 依赖 `PingGuoMiaoMiao/MoonMC@0.1.0`，将核心生成的网格和 `RenderSnapshot` 转换为 GPU 绘制。
+LunarRender 是渲染运行时，不是 Minecraft 游戏本体。它接收应用提交的通用网格和帧数据，负责窗口、后端、GPU 资源和绘制生命周期。
 
-## 2. 目录
+首个运行后端是 Windows native + GLFW 3.4 + GLAD 2.0.8 + OpenGL 3.3 Core。后端可以在公共 `renderer` 接口稳定后继续增加，不把 OpenGL 句柄泄露给上层。
 
-```text
-cmd/lunarrender       参数、输入、主循环和客户端编排
-renderer              Renderer 边界、GPU 上传和绘制顺序
-platform/native       GLFW、GLAD、WIC、文件、存档和 OpenGL C FFI
-core/mmd              可选 PMX 解析包，不参与默认主循环
-assets/textures       默认材质和玩家皮肤输入
-resourcepacks         运行时资源包 manifest
-third_party/glfw      GLFW 3.4 源码
-third_party/glad      GLAD 生成器/源码
-third_party/glad-generated  OpenGL loader 2.0.8 生成文件
-scripts               Windows 构建和资源图集脚本
-```
-
-## 3. 所有权边界
-
-| 内容 | 所有者 |
-|---|---|
-| 世界、区块、物理、射线和命令值 | MoonMC |
-| ChunkMeshData、PlayerMeshData、RenderSnapshot | MoonMC 生成，LunarRender 消费 |
-| GLFW window、键鼠状态和时间 | LunarRender |
-| `resourcepacks/<name>/pack.json` 文件读取与 WIC 解码 | LunarRender |
-| shader、VAO、VBO、纹理和 GPU 缓存 | LunarRender |
-| 存档 JSON/二进制格式 | MoonMC；文件读写由 LunarRender 驱动 |
-| 私有 MMD 解析与绘制 | LunarRender 可选后端 |
-
-## 4. Renderer 接口
-
-```moonbit
-pub fn Renderer::upload_chunk(
-  self : Renderer,
-  position : @world.ChunkPos,
-  mesh : @mesh.ChunkMeshData,
-) -> Bool
-
-pub fn Renderer::remove_chunk(
-  self : Renderer,
-  position : @world.ChunkPos,
-) -> Unit
-
-pub fn Renderer::upload_player(
-  self : Renderer,
-  mesh : @mesh.PlayerMeshData,
-) -> Bool
-
-pub fn Renderer::draw_frame(
-  self : Renderer,
-  snapshot : @render.RenderSnapshot,
-) -> Unit
-
-pub fn Renderer::shutdown(
-  self : Renderer,
-) -> Unit
-```
-
-`upload_chunk` 按 `ChunkPos` 管理 GPU 区块槽位；`upload_player` 替换当前玩家或第一人称手臂网格；`draw_frame` 消费矩阵、选中方块、玩家显示意图和 HUD；`shutdown` 删除全部 OpenGL 资源。
-
-## 5. 主循环
+## 2. 目录边界
 
 ```text
-输入采集
-→ 相机更新
-→ MoonMC 玩家物理
-→ 射线检测和方块编辑
-→ 区块流式调度
-→ dirty 区块网格重建与上传
-→ PlayerMeshData 上传
-→ RenderSnapshot 构造
-→ Renderer::draw_frame
-→ 交换缓冲
+LunarRender/
+├─ renderer/              纯 MoonBit 网格和帧数据
+├─ backend/opengl/        OpenGL 3.3 Core 实现和 GPU 资源
+├─ platform/native/       Windows 窗口、输入、时间、文件和图片读取
+├─ formats/mmd/           可选 PMX 解析和通用模型数据
+├─ cmd/lunarrender/       静态网格示例程序
+├─ third_party/            GLFW、GLAD 和构建产物目录
+├─ scripts/                构建与运行记录脚本
+└─ docs/                  设计、计划和验收记录
 ```
 
-LunarRender 不直接生成世界规则，也不在 C 中解析 MoonBit 世界结构体。只通过显式 FFI 参数传递连续数组、标量和路径字符串。
+## 3. 依赖方向
 
-## 6. 资源和可选 MMD
+```text
+外部游戏或应用
+  ├─ MoonMC 游戏核心
+  └─ LunarRender/renderer
+       └─ LunarRender/backend/opengl
+            └─ LunarRender/platform/native
+```
 
-默认材质图集由纯 MoonBit CPU 逻辑生成，再由 `gl_replace_texture_atlas` 上传。MMD 默认关闭，公共仓库只保留无私有素材的 PMX 解析包，不保存私有 PMX、VMD、贴图或生成 C 文件。可选后端必须通过独立构建开关和本地路径准备，不改变体素 Renderer 接口。
+LunarRender 不导入 `PingGuoMiaoMiao/MoonMC`。MoonMC 拥有世界、区块、方块、玩家、物理、碰撞、跳跃、HUD、物品栏、命令、存档和游戏资源策略。LunarRender 拥有渲染数据、窗口、GPU 资源和图形后端。
+
+## 4. 公共渲染数据
+
+`renderer.MeshData` 的第一版字段为：
+
+- `vertices`：交错的 `FixedArray[Float]`。
+- `vertex_count`：顶点数量。
+- `floats_per_vertex`：固定为 `6`。
+
+每个顶点排列为：
+
+```text
+position.x position.y position.z uv.u uv.v shade
+```
+
+`renderer.FrameData` 保存严格 16 个 Float 的列主序视图投影矩阵。公共层只校验数据完整性，不创建 VAO、VBO 或纹理。
+
+## 5. OpenGL 后端
+
+`backend/opengl` 创建和销毁 Shader、VAO、VBO，并通过整数资源槽位保存通用网格。资源键只属于渲染器，不解释为区块坐标、实体 ID 或物品槽位。
+
+当前后端使用固定的 6 Float 顶点布局和无外部纹理的示例 Shader。后续增加材质、法线、骨骼或实例数据时，应增加明确的顶点格式，而不是把游戏字段写入 `MeshData`。
+
+## 6. 平台层
+
+`platform/native` 创建 OpenGL 上下文所在的 GLFW 窗口，并提供事件轮询、键鼠状态、时间、文件和图片读取。它不创建 GPU 网格，也不决定应用的游戏规则。
+
+## 7. 默认数据流
+
+```text
+应用构造 MeshData / FrameData
+→ platform 创建窗口和 OpenGL context
+→ backend/opengl 初始化 Shader 和资源槽位
+→ upload_mesh(key, mesh)
+→ 每帧 poll_events
+→ draw_frame(frame)
+→ swap_buffers
+→ remove_mesh / backend shutdown
+→ window destroy
+```
+
+## 8. MMD 边界
+
+`formats/mmd` 只负责 PMX 二进制解析和格式数据。模型选择、角色身份、动作、骨骼播放、摄像机视角和游戏位置由使用方负责。没有私有模型时，默认静态示例仍必须构建和运行。

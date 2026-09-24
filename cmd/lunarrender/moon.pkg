@@ -1,23 +1,10 @@
 supported_targets = "native"
 
 import {
-  "PingGuoMiaoMiao/MoonMC/core/math",
-  "PingGuoMiaoMiao/MoonMC/core/world",
-  "PingGuoMiaoMiao/MoonMC/core/raycast",
-  "PingGuoMiaoMiao/MoonMC/core/mesh",
-  "PingGuoMiaoMiao/MoonMC/core/assets",
-  "PingGuoMiaoMiao/MoonMC/core/inventory",
-  "PingGuoMiaoMiao/MoonMC/core/physics",
-  "PingGuoMiaoMiao/MoonMC/core/entity",
-  "PingGuoMiaoMiao/MoonMC/core/save",
-  "PingGuoMiaoMiao/MoonMC/core/command",
-  "PingGuoMiaoMiao/MoonMC/core/render",
-  "PingGuoMiaoMiao/LunarRender/platform/native",
   "PingGuoMiaoMiao/LunarRender/renderer",
+  "PingGuoMiaoMiao/LunarRender/backend/opengl",
+  "PingGuoMiaoMiao/LunarRender/platform/native",
   "moonbitlang/core/env",
-  "moonbitlang/core/string",
-  "moonbitlang/core/hashset",
-  "moonbitlang/core/math" @stdmath,
 }
 
 pkgtype(kind: "executable")
@@ -25,7 +12,7 @@ pkgtype(kind: "executable")
 options(
   link: {
     "native": {
-    "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib windowscodecs.lib ole32.lib",
+      "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib windowscodecs.lib ole32.lib",
     },
   },
 )

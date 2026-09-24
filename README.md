@@ -1,29 +1,32 @@
 # LunarRender
 
-LunarRender 是 `PingGuoMiaoMiao/LunarRender@0.1.0`，面向 Windows native 的 OpenGL 3.3 Core 客户端。它消费 `PingGuoMiaoMiao/MoonMC@0.1.0` 的纯 MoonBit世界、玩家、网格和渲染快照数据。
+LunarRender 是一个使用 MoonBit 构建的跨后端实时渲染运行时。它把通用渲染数据、窗口平台和图形 API 后端分开，供游戏、可视化工具和模型预览程序使用。
 
-## 当前范围
+当前首个后端是 Windows native、GLFW 3.4、GLAD 2.0.8 和 OpenGL 3.3 Core。OpenGL 是实现方式，不是 LunarRender 的项目边界。
 
-- GLFW `3.4` 窗口和输入。
-- GLAD `2.0.8` 加载 OpenGL 3.3 Core。
-- 区块网格、玩家网格、第一人称手臂、HUD、选中框和资源包图集上传。
-- Windows WIC 图片解码、原子存档文件写入和本地资源读取。
-- 第一/第三人称、重力/碰撞/跳跃、破坏/放置和九槽热键栏由 MoonMC 核心逻辑提供，客户端负责输入与编排。
-- MMD 是可选后端；默认构建不要求私有 PMX、VMD、贴图或生成 C 文件。
+## 当前内容
 
-## 环境
+- 纯 MoonBit `renderer` 网格/帧数据接口。
+- Windows GLFW 窗口、输入、时间和文件/图片读取。
+- OpenGL 3.3 Core Shader、VAO、VBO、网格上传和销毁。
+- 静态三角形示例程序 `cmd/lunarrender`。
+- 独立的可选 `formats/mmd` PMX 解析模块。
 
-- Windows x64。
+Minecraft 的世界、玩家、Steve、重力、碰撞、跳跃、方块编辑、HUD、物品栏、命令和存档属于 MoonMC 或其他游戏组合层，不属于 LunarRender 默认运行时。
+
+## 环境要求
+
+- Windows 10/11 x64。
+- Visual Studio 2022，安装 MSVC C/C++ 工作负载。
+- CMake 3.20 或更高版本。
 - MoonBit 工具链。
-- Visual Studio 2022 MSVC C/C++ 工作负载和 Windows SDK。
-- CMake。
+- 支持 OpenGL 3.3 Core 的显卡驱动。
 
 ## 构建
 
-MoonMC `0.1.0` 发布到 Mooncakes 后：
+在仓库根目录执行：
 
 ```powershell
-moon install
 cmake -S . -B third_party/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
 cmake --build third_party/build --config Release
 moon check --target native
@@ -31,27 +34,57 @@ moon test --target native
 moon build --target native --release cmd/lunarrender
 ```
 
-如需本地联调，在共同父目录使用临时 `moon.work` 指向 MoonMC worktree；不要提交它。`scripts/build.ps1` 会执行资源图集生成、CMake 和 native 构建，不会要求私有 MMD 文件。
+也可以使用：
+
+```powershell
+.\scripts\build.ps1
+```
 
 ## 运行
 
 ```powershell
-& .\_build\native\release\build\PingGuoMiaoMiao\LunarRender\cmd\lunarrender\lunarrender.exe --seed 0
+._build\native\release\build\cmd\lunarrender\lunarrender.exe
 ```
 
-操作：W/A/S/D 移动，鼠标转向，Space 跳跃，1–9 选择方块，鼠标左键破坏，右键放置，F7 切换资源包，F8 切换第一/第三人称，`/` 打开命令行，Escape 保存并退出。
+示例窗口显示一个静态网格。按 `Esc` 退出。运行日志会记录窗口创建、OpenGL 后端版本、网格上传和反向销毁顺序。
+
+自动化验证可以使用 `--self-test`，窗口运行约一秒后按正常顺序退出：
+
+```powershell
+._build\native\release\build\cmd\lunarrender\lunarrender.exe --self-test
+```
+
+## 公共接口
+
+`renderer.MeshData` 第一版每个顶点使用 6 个 Float：
+
+```text
+position.xyz, uv.xy, shade
+```
+
+`renderer.FrameData` 使用 16 个 Float 的视图投影矩阵。OpenGL 后端的 `Renderer` 负责上传、删除和绘制资源槽位。
 
 ## 目录
 
 ```text
-cmd/lunarrender       客户端主循环
-renderer              GPU Renderer
-platform/native       GLFW/GLAD/OpenGL/WIC/文件 FFI
-core/mmd              可选 PMX 解析包，不参与默认客户端主循环
-assets/textures       默认方块和玩家皮肤
-resourcepacks         pack.json
-third_party           GLFW、GLAD
-scripts               Windows 构建和图集脚本
+renderer/              通用纯 MoonBit 数据
+backend/opengl/        OpenGL 3.3 Core 后端
+platform/native/       Windows GLFW 平台层
+formats/mmd/           可选 PMX 格式解析
+cmd/lunarrender/       静态示例
+third_party/           GLFW、GLAD 和本地构建目录
+docs/                  设计和实施记录
+scripts/               构建与运行脚本
 ```
 
-私有 MMD 文件和生成文件必须留在被 `.gitignore` 忽略的本地路径中。
+## 申请材料
+
+项目申请书草稿位于 [`PROJECT_PROPOSAL.md`](PROJECT_PROPOSAL.md)。其中没有填写申请人、指导教师、经费、院系或学校等未提供的信息。
+
+## 第三方项目参考
+
+- [bgfx](https://github.com/bkaradzic/bgfx)：公共渲染 API 与多个后端分离。
+- [sokol](https://github.com/floooh/sokol)：轻量图形层与应用/窗口层边界。
+- [wgpu](https://github.com/gfx-rs/wgpu)：核心接口、硬件抽象和具体后端的分层。
+- [ClassiCube](https://github.com/ClassiCube/ClassiCube)：小型 Minecraft 风格客户端的工程参考。
+- [MoonBit FFI 文档](https://docs.moonbitlang.com/en/latest/language/ffi.html)。

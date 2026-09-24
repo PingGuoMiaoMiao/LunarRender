@@ -3,15 +3,13 @@ supported_targets = "native"
 options(
   "native-stub": [
     "platform.c",
-    "texture_atlas.c",
     "file_io.c",
     "image_io.c",
-    "save_io.c",
   ],
   link: {
     "native": {
-      "cc-flags": "/I third_party/glad-generated/include /I third_party/glfw/include",
-      "stub-cc-flags": "/I third_party/glad-generated/include /I third_party/glfw/include",
+      "cc-flags": "/I third_party/glfw/include",
+      "stub-cc-flags": "/I third_party/glfw/include",
       "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib windowscodecs.lib ole32.lib",
     },
   },

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(LunarRenderNative C)
+project(LunarRender C)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "" FORCE)

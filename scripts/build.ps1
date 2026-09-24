@@ -5,25 +5,6 @@ $thirdPartyBuild = Join-Path $repoRoot 'third_party\build'
 
 $moonCommand = Get-Command moon -ErrorAction Stop
 $cmakeCommand = Get-Command cmake -ErrorAction Stop
-$textureScript = Join-Path $PSScriptRoot 'generate-texture-atlas.ps1'
-$defaultPackTextureRoot = Join-Path $repoRoot 'resourcepacks\default\textures\blocks'
-$warmPackTextureRoot = Join-Path $repoRoot 'resourcepacks\warm\textures\blocks'
-New-Item -ItemType Directory -Force -Path $defaultPackTextureRoot | Out-Null
-New-Item -ItemType Directory -Force -Path $warmPackTextureRoot | Out-Null
-$textureCopies = @{
-  'stone_generic.png' = 'stone.png'
-  'dirt.png' = 'dirt.png'
-  'grass_side.png' = 'grass_side.png'
-  'grass_top.png' = 'grass_top.png'
-}
-foreach ($sourceName in $textureCopies.Keys) {
-  Copy-Item -LiteralPath (Join-Path $repoRoot (Join-Path 'assets\textures' $sourceName)) -Destination (Join-Path $defaultPackTextureRoot $textureCopies[$sourceName]) -Force
-  Copy-Item -LiteralPath (Join-Path $repoRoot (Join-Path 'assets\textures' $sourceName)) -Destination (Join-Path $warmPackTextureRoot $textureCopies[$sourceName]) -Force
-}
-& $textureScript
-if (!$?) {
-  throw 'Texture atlas generation failed.'
-}
 $vsWhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
 if (!(Test-Path -LiteralPath $vsWhere -PathType Leaf)) {
   throw "Visual Studio locator was not found: $vsWhere"
@@ -61,5 +42,13 @@ if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 
+& $moonCommand.Source -C $repoRoot check --target native
+if ($LASTEXITCODE -ne 0) {
+  exit $LASTEXITCODE
+}
+& $moonCommand.Source -C $repoRoot test --target native
+if ($LASTEXITCODE -ne 0) {
+  exit $LASTEXITCODE
+}
 & $moonCommand.Source -C $repoRoot build --target native --release 'cmd/lunarrender'
 exit $LASTEXITCODE

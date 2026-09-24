@@ -1,6 +1,7 @@
 _build/
 third_party/build/
 saves/
+artifacts/
 .tools/
 .worktrees/
 moon.work
@@ -11,13 +12,9 @@ moon.work
 *.obj
 *.lib
 *.exe
-platform/native/mmd_animated_model.c
-platform/native/mmd_texture_atlas.c
-platform/native/fbx_model.c
-platform/native/fbx_*.c
+formats/mmd/generated/
 assets/private/
-resourcepacks/*/textures/
-!resourcepacks/*/pack.json
+private-assets/
 *.pmx
 *.pmd
 *.vmd

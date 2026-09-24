@@ -11,6 +11,13 @@ test "backend rejects invalid mesh data before native upload" {
 
 ///|
 test "backend starts with zero uploaded meshes in its state model" {
-  let renderer = Renderer::{ initialized: false, uploaded_keys: [] }
+  let renderer = Renderer::{
+    initialized: false,
+    uploaded_mesh_keys: [],
+    uploaded_texture_keys: [],
+    uploaded_material_keys: [],
+  }
   assert_eq(renderer.uploaded_mesh_count(), 0)
+  assert_eq(renderer.uploaded_texture_count(), 0)
+  assert_eq(renderer.uploaded_material_count(), 0)
 }

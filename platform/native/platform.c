@@ -86,6 +86,26 @@ void lunarrender_platform_window_destroy(void) {
   fprintf(stderr, "LunarRender platform window: destroyed\n");
 }
 
+int32_t lunarrender_platform_window_framebuffer_width(void) {
+  if (lunarrender_platform_window == NULL) {
+    return 0;
+  }
+  int width = 0;
+  int height = 0;
+  glfwGetFramebufferSize(lunarrender_platform_window, &width, &height);
+  return (int32_t)width;
+}
+
+int32_t lunarrender_platform_window_framebuffer_height(void) {
+  if (lunarrender_platform_window == NULL) {
+    return 0;
+  }
+  int width = 0;
+  int height = 0;
+  glfwGetFramebufferSize(lunarrender_platform_window, &width, &height);
+  return (int32_t)height;
+}
+
 double lunarrender_platform_window_time_seconds(void) {
   if (lunarrender_platform_window == NULL) {
     return 0.0;

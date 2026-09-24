@@ -19,6 +19,14 @@ pub extern "C" fn window_destroy() -> Unit =
   "lunarrender_platform_window_destroy"
 
 ///|
+pub extern "C" fn window_framebuffer_width() -> Int =
+  "lunarrender_platform_window_framebuffer_width"
+
+///|
+pub extern "C" fn window_framebuffer_height() -> Int =
+  "lunarrender_platform_window_framebuffer_height"
+
+///|
 pub extern "C" fn window_time_seconds() -> Double =
   "lunarrender_platform_window_time_seconds"
 

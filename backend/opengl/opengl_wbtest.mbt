@@ -4,6 +4,7 @@ test "backend rejects invalid mesh data before native upload" {
     vertices: FixedArray::make(5, 0.0),
     vertex_count: 1,
     floats_per_vertex: 6,
+    material: None,
   }
   assert_false(invalid.valid())
 }

@@ -23,6 +23,7 @@ fn demo_mesh() -> @renderer.MeshData {
     vertices: FixedArray::makei(vertices.length(), index => vertices[index]),
     vertex_count: 3,
     floats_per_vertex: 6,
+    material: None,
   }
 }
 
@@ -59,7 +60,11 @@ fn main {
     return
   }
   println("LunarRender: static renderer example started")
-  let frame = @renderer.FrameData::{ view_projection: identity_matrix() }
+  let frame = @renderer.FrameData::{
+    view_projection: identity_matrix(),
+    viewport_width: WindowWidth,
+    viewport_height: WindowHeight,
+  }
   let self_test = self_test_mode()
   let start_time = @native.window_time_seconds()
   while !@native.window_should_close() && !@native.window_key_down(KeyEscape) &&

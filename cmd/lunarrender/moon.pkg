@@ -5,6 +5,7 @@ import {
   "PingGuoMiaoMiao/LunarRender/backend/opengl",
   "PingGuoMiaoMiao/LunarRender/platform/native",
   "moonbitlang/core/env",
+  "moonbitlang/core/math" @stdmath,
 }
 
 pkgtype(kind: "executable")

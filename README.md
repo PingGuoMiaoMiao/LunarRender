@@ -88,3 +88,7 @@ scripts/               构建与运行脚本
 - [wgpu](https://github.com/gfx-rs/wgpu)：核心接口、硬件抽象和具体后端的分层。
 - [ClassiCube](https://github.com/ClassiCube/ClassiCube)：小型 Minecraft 风格客户端的工程参考。
 - [MoonBit FFI 文档](https://docs.moonbitlang.com/en/latest/language/ffi.html)。
+
+## 许可证
+
+本项目使用 [MIT License](LICENSE)。

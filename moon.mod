@@ -1,5 +1,6 @@
 name = "PingGuoMiaoMiao/LunarRender"
 version = "0.1.0"
+license = "MIT"
 readme = "README.md"
 repository = "https://github.com/PingGuoMiaoMiao/LunarRender.git"
 description = "A backend-neutral MoonBit rendering runtime with a Windows OpenGL backend."

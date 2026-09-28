@@ -2,7 +2,7 @@
 
 LunarRender 是一个使用 MoonBit 构建的跨后端实时渲染运行时。它把通用渲染数据、窗口平台和图形 API 后端分开，供游戏、可视化工具和模型预览程序使用。
 
-当前首个后端是 Windows native、GLFW 3.4、GLAD 2.0.8 和 OpenGL 3.3 Core。OpenGL 是实现方式，不是 LunarRender 的项目边界。
+当前首个后端是 Windows native、GLFW 3.4、GLAD 2.0.8 和 OpenGL 3.3 Core。
 
 ## 当前内容
 
@@ -12,8 +12,6 @@ LunarRender 是一个使用 MoonBit 构建的跨后端实时渲染运行时。�
 - 由 MoonBit 生成 8×8 RGBA 棋盘纹理、材质和 36 顶点旋转立方体示例程序 `cmd/lunarrender`。
 - 独立的可选 `formats/mmd` PMX 解析模块。
 
-Minecraft 的世界、玩家、Steve、重力、碰撞、跳跃、方块编辑、HUD、物品栏、命令和存档属于 MoonMC 或其他游戏组合层，不属于 LunarRender 默认运行时。
-
 ## 环境要求
 
 - Windows 10/11 x64。
@@ -21,6 +19,20 @@ Minecraft 的世界、玩家、Steve、重力、碰撞、跳跃、方块编辑�
 - CMake 3.20 或更高版本。
 - MoonBit 工具链。
 - 支持 OpenGL 3.3 Core 的显卡驱动。
+
+## 安装
+
+1. 安装 MoonBit 工具链，并确认 `moon --version` 可以在 PowerShell 中运行。
+2. 使用 Visual Studio Installer 安装 Visual Studio 2022 的 MSVC C/C++ 工作负载。
+3. 安装 CMake 3.20 或更高版本，并确认 `cmake --version` 可以运行。
+4. 克隆本仓库并进入项目根目录：
+
+```powershell
+git clone https://github.com/PingGuoMiaoMiao/LunarRender.git
+cd LunarRender
+```
+
+5. 按下面的“构建”步骤生成 GLFW、GLAD 和 LunarRender native 程序。
 
 ## 构建
 

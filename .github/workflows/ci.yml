@@ -24,12 +24,14 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install MoonBit toolchain (latest)
         run: |
           $ErrorActionPreference = 'Stop'
-          Invoke-Expression (Invoke-WebRequest -UseBasicParsing https://cli.moonbitlang.com/install/powershell.ps1).Content
+          $installer = Join-Path $env:RUNNER_TEMP 'install-moonbit.ps1'
+          Invoke-WebRequest -UseBasicParsing https://cli.moonbitlang.com/install/powershell.ps1 -OutFile $installer
+          & $installer
           "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           & "$env:USERPROFILE\.moon\bin\moon.exe" version --all
 
@@ -62,7 +64,7 @@ jobs:
           $dirty = git status --porcelain
           if ($dirty) {
             Write-Output $dirty
-            throw 'working tree is dirty after the build; check .gitignore'
+            throw 'working tree is dirty after the build; check .gitignore or commit the regenerated pkg.generated.mbti'
           }
 
   pure-libs-wasm-gc:
@@ -70,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install MoonBit toolchain (latest)
         run: |

@@ -84,6 +84,8 @@ jobs:
           $dirty = git status --porcelain
           if ($dirty) {
             Write-Output $dirty
+            git diff --stat
+            git diff -- '*.mbti'
             throw 'working tree is dirty after the build; check .gitignore or commit the regenerated pkg.generated.mbti'
           }
 

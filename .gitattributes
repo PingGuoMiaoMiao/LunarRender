@@ -1,0 +1,3 @@
+# `moon check` regenerates these interface files. Keep them LF-normalized so a
+# CRLF checkout on Windows does not show them as modified after every build.
+*.mbti text eol=lf

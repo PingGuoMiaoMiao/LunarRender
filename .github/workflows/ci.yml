@@ -38,11 +38,31 @@ jobs:
       - name: Show toolchain versions
         run: moon version --all
 
+      - name: Show compiler toolchain
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property catalog_productDisplayVersion
+          } else {
+            Write-Output 'vswhere not found'
+          }
+          cmake --version
+
       - name: Configure CMake
-        run: cmake -S . -B third_party/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
+        # README 里的命令固定使用 "Visual Studio 17 2022"；托管 runner 可能装的是更新的
+        # Visual Studio，这里让 CMake 选择已安装的生成器，只固定 x64 平台。
+        run: |
+          cmake -S . -B third_party/build -A x64 -DBUILD_SHARED_LIBS=OFF
+          Select-String -Path third_party/build/CMakeCache.txt -Pattern '^CMAKE_GENERATOR:'
 
       - name: Build GLFW and GLAD static libraries
-        run: cmake --build third_party/build --config Release
+        run: |
+          cmake --build third_party/build --config Release
+          foreach ($lib in 'third_party/build/Release/lunarrender_glad.lib', 'third_party/build/glfw/src/Release/glfw3.lib') {
+            if (-not (Test-Path $lib)) { throw "expected static library was not produced: $lib" }
+            Write-Output ("found {0}" -f $lib)
+          }
 
       - name: moon check
         run: moon check --target native

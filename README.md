@@ -129,15 +129,39 @@ position.xyz, uv.xy, shade
 
 渲染资源使用独立的 `MeshHandle`、`TextureHandle` 和 `MaterialHandle`。`TextureData` 固定为严格的 RGBA8 字节，`MaterialData` 可引用纹理并声明 `Opaque` 或 `Blend`。OpenGL 后端的 `Renderer` 负责校验引用、上传、删除和绘制资源槽位。
 
+## 性能
+
+性能特征、测量方法和优化记录见 [docs/performance.md](docs/performance.md)。
+2026-11 这一轮算法优化的实测结果（同机、`moon bench --release`、MSVC `/O2`）：
+
+| 路径 | 优化前 | 优化后 | 倍数 |
+| --- | --- | --- | --- |
+| 一帧的 CPU 提交开销（256 个网格） | 43.9 µs | 1.79 µs | 24.5× |
+| 句柄 key → 资源槽位查找 | 133.6 ns | 2.62 ns | 51× |
+| 每帧视图投影矩阵 | 1.04 µs | 228 ns | 4.5× |
+
+复现：
+
+```powershell
+moon bench --target native --release -p PingGuoMiaoMiao/LunarRender/cmd/lunarrender
+
+cl /nologo /std:c11 /O2 /Fe:tools\resource_table_bench.exe tools\resource_table_bench.c
+tools\resource_table_bench.exe
+```
+
+这些是 CPU 侧数字。示例本身受垂直同步与 GPU 限制，上表的意义是：网格/材质/纹理
+数量增长时这些固定成本不再线性放大。
+
 ## 目录
 
 ```text
 renderer/              通用纯 MoonBit 数据
-backend/opengl/        OpenGL 3.3 Core 后端
+backend/opengl/        OpenGL 3.3 Core 后端（含资源表与渲染路径）
 platform/native/       Windows GLFW 平台层
 formats/mmd/           可选 PMX 格式解析
 cmd/lunarrender/       旋转纹理立方体示例
 third_party/           GLFW、GLAD 和本地构建目录
+tools/                 C 侧资源表基准与自检
 docs/                  设计和实施记录
 scripts/               构建与运行脚本
 ```
@@ -149,6 +173,7 @@ scripts/               构建与运行脚本
 ## 维护记录
 
 - [docs/maintenance-2026-11.md](docs/maintenance-2026-11.md) — 2026-11 工具链兼容性检查与修复记录（完整命令与输出）。
+- [docs/performance.md](docs/performance.md) — 性能特征、测量方法、本轮算法优化与后续优先级。
 
 ## 第三方项目参考
 

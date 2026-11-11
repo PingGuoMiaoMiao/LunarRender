@@ -1,11 +1,16 @@
 supported_targets = "native"
 
+// `moonbitlang/core/bench` is only referenced from `*_bench_wbtest.mbt`; `moon
+// check` does not type-check benchmark blocks, so the import looks unused there.
+warnings = "-29"
+
 import {
   "PingGuoMiaoMiao/LunarRender/renderer",
   "PingGuoMiaoMiao/LunarRender/backend/opengl",
   "PingGuoMiaoMiao/LunarRender/platform/native",
   "moonbitlang/core/env",
   "moonbitlang/core/math" @stdmath,
+  "moonbitlang/core/bench",
 }
 
 pkgtype(kind: "executable")

@@ -1,4 +1,5 @@
 ///|
+#derive(Debug)
 pub(all) struct PmxMaterial {
   texture_index : Int
   first_index : Int
@@ -7,9 +8,13 @@ pub(all) struct PmxMaterial {
   diffuse_g : Float
   diffuse_b : Float
   diffuse_a : Float
-} derive(Debug)
+}
 
 ///|
+pub extend PmxMaterial with @debug.Debug::{to_repr}
+
+///|
+#derive(Debug)
 pub(all) struct PmxModel {
   vertex_count : Int
   index_count : Int
@@ -17,7 +22,10 @@ pub(all) struct PmxModel {
   positions_normals_uv : FixedArray[Float]
   indices : FixedArray[Int]
   materials : Array[PmxMaterial]
-} derive(Debug)
+}
+
+///|
+pub extend PmxModel with @debug.Debug::{to_repr}
 
 ///|
 const MmdAtlasTileSize : Double = 512.0

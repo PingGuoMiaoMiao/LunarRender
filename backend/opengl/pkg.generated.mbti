@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "PingGuoMiaoMiao/LunarRender/backend/opengl"
+
+import {
+  "PingGuoMiaoMiao/LunarRender/renderer",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct Renderer {
+  mut initialized : Bool
+  mut uploaded_mesh_keys : Array[Int32]
+  mut uploaded_texture_keys : Array[Int32]
+  mut uploaded_material_keys : Array[Int32]
+}
+pub fn Renderer::draw_frame(Self, @renderer.FrameData) -> Unit
+pub fn Renderer::new() -> Self?
+pub fn Renderer::remove_material(Self, @renderer.MaterialHandle) -> Unit
+pub fn Renderer::remove_mesh(Self, @renderer.MeshHandle) -> Unit
+pub fn Renderer::remove_texture(Self, @renderer.TextureHandle) -> Unit
+pub fn Renderer::shutdown(Self) -> Unit
+pub fn Renderer::upload_material(Self, @renderer.MaterialHandle, @renderer.MaterialData) -> Bool
+pub fn Renderer::upload_mesh(Self, @renderer.MeshHandle, @renderer.MeshData) -> Bool
+pub fn Renderer::upload_texture(Self, @renderer.TextureHandle, @renderer.TextureData) -> Bool
+pub fn Renderer::uploaded_material_count(Self) -> Int32
+pub fn Renderer::uploaded_mesh_count(Self) -> Int32
+pub fn Renderer::uploaded_texture_count(Self) -> Int32
+
+// Type aliases
+
+// Traits

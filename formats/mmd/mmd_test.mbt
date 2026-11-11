@@ -10,7 +10,7 @@ fn empty_pmx() -> Bytes {
 ///|
 test "PMX parser accepts empty model" {
   inspect(empty_pmx().length(), content="49")
-  let model = parse(empty_pmx())
+  let model = @mmd.parse(empty_pmx())
   match model {
     None => panic()
     Some(model) => {
@@ -25,7 +25,7 @@ test "PMX parser accepts empty model" {
 ///|
 test "PMX parser rejects invalid header" {
   let bytes = Bytes::from_array([b'N', b'O', b'P', b'E'])
-  match parse(bytes) {
+  match @mmd.parse(bytes) {
     None => println("invalid header rejected")
     Some(_) => panic()
   }
@@ -34,7 +34,7 @@ test "PMX parser rejects invalid header" {
 ///|
 test "PMX parser rejects truncation" {
   let bytes = Bytes::from_array(empty_pmx()[:20].to_array())
-  match parse(bytes) {
+  match @mmd.parse(bytes) {
     None => println("truncation rejected")
     Some(_) => panic()
   }
@@ -53,7 +53,7 @@ test "PMX parser keeps high 16-bit vertex indices unsigned" {
   for _ in 0..<8 {
     data.push(0)
   }
-  match parse(Bytes::from_array(data)) {
+  match @mmd.parse(Bytes::from_array(data)) {
     None => panic()
     Some(model) => {
       inspect(model.index_count, content="1")

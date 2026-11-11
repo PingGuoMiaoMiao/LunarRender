@@ -12,12 +12,54 @@ LunarRender 是一个使用 MoonBit 构建的跨后端实时渲染运行时。�
 - 由 MoonBit 生成 8×8 RGBA 棋盘纹理、材质和 36 顶点旋转立方体示例程序 `cmd/lunarrender`。
 - 独立的可选 `formats/mmd` PMX 解析模块。
 
+## 兼容性与验证
+
+[![CI](https://github.com/PingGuoMiaoMiao/LunarRender/actions/workflows/ci.yml/badge.svg)](https://github.com/PingGuoMiaoMiao/LunarRender/actions/workflows/ci.yml)
+
+2026-11-11 使用官方最新工具链完成兼容性检查，`moon version --all` 记录如下：
+
+```text
+moon    0.1.20261104 (940aa18 2026-11-04)
+moonc   v0.10.20+65efd5b93 (2026-11-05)
+moonrun 0.1.20261104 (940aa18 2026-11-04)
+```
+
+| 检查项 | 命令 | 结果 |
+| --- | --- | --- |
+| 类型检查 | `moon check --target native` | 通过，0 warning |
+| native 测试 | `moon test --target native` | 23/23 通过 |
+| 纯 MoonBit 包（wasm-gc） | `moon test --target wasm-gc` | 14/14 通过 |
+| Release 构建 | `moon build --target native --release cmd/lunarrender` | 通过 |
+| 核心示例 | `lunarrender.exe --self-test` | 窗口 960×540、OpenGL 3.3.0，纹理/材质/网格上传与销毁日志完整 |
+
+本次为适配新工具链所做的源码变更：
+
+- `formats/mmd`：`derive(Debug)` 迁移为 `#derive(Debug)`，并按编译器提示补充
+  `pub extend ... with @debug.Debug::{to_repr}`；`moon.pkg` 显式导入
+  `moonbitlang/core/debug`。
+- `formats/mmd/mmd_test.mbt`：黑盒测试改用 `@mmd.parse`（新工具链不再隐式导入本包）。
+
+平台与版本限制：
+
+- 运行示例（正常窗口或 `--self-test`）需要 Windows 10/11 x64、桌面会话和支持
+  OpenGL 3.3 Core 的驱动；没有桌面/GPU 的 CI 只做构建与测试，不运行窗口。
+- `renderer` 和 `formats/mmd` 是纯 MoonBit 包，可在 `wasm-gc` 等后端检查与测试；
+  `backend/opengl`、`platform/native` 只声明 `supported_targets = "native"`。
+- 第三方 GLFW 3.4 / GLAD 2.0.8 以源码形式存放在 `third_party/`，由 CMake 3.20+
+  和 VS 2022 MSVC 构建；本机另外用 CMake 4.4.2 实测配置与构建通过。
+- 只验证当前工具链（moon 0.1.20261104 / moonc v0.10.20）。升级工具链后请重新执行
+  上表的检查项。
+
+CI（`.github/workflows/ci.yml`）在每次 push / PR 上运行：`windows-latest` 安装最新
+MoonBit 工具链、构建 GLFW/GLAD 静态库，并执行 `moon check`、`moon test` 和 Release
+构建；`ubuntu-latest` 对纯 MoonBit 包执行 `wasm-gc` 检查与测试。
+
 ## 环境要求
 
 - Windows 10/11 x64。
 - Visual Studio 2022，安装 MSVC C/C++ 工作负载。
 - CMake 3.20 或更高版本。
-- MoonBit 工具链。
+- MoonBit 工具链（2026-11 验证版本：moon 0.1.20261104 / moonc v0.10.20）。
 - 支持 OpenGL 3.3 Core 的显卡驱动。
 
 ## 安装
@@ -103,6 +145,10 @@ scripts/               构建与运行脚本
 ## 申请材料
 
 项目申请书草稿位于 [`PROJECT_PROPOSAL.md`](PROJECT_PROPOSAL.md)。其中没有填写申请人、指导教师、经费、院系或学校等未提供的信息。
+
+## 维护记录
+
+- [docs/maintenance-2026-11.md](docs/maintenance-2026-11.md) — 2026-11 工具链兼容性检查与修复记录（完整命令与输出）。
 
 ## 第三方项目参考
 

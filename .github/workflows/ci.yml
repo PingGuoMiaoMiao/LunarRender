@@ -1,0 +1,87 @@
+name: CI
+
+# 持续兼容性检查：每次 push / PR 都在官方最新 MoonBit 工具链上重新构建、检查和测试。
+# 需要固定版本做二分排查时，在安装步骤前设置环境变量 MOONBIT_INSTALL_VERSION（安装脚本会读取它）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-windows:
+    name: native (Windows x64, MSVC + OpenGL 后端)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit toolchain (latest)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-Expression (Invoke-WebRequest -UseBasicParsing https://cli.moonbitlang.com/install/powershell.ps1).Content
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & "$env:USERPROFILE\.moon\bin\moon.exe" version --all
+
+      - name: Show toolchain versions
+        run: moon version --all
+
+      - name: Configure CMake
+        run: cmake -S . -B third_party/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build GLFW and GLAD static libraries
+        run: cmake --build third_party/build --config Release
+
+      - name: moon check
+        run: moon check --target native
+
+      - name: moon test
+        run: moon test --target native
+
+      - name: moon build (release example)
+        run: moon build --target native --release cmd/lunarrender
+
+      - name: Verify release artifact
+        run: |
+          $exe = Get-ChildItem _build -Recurse -Filter lunarrender.exe -File | Select-Object -First 1
+          if (-not $exe) { throw 'lunarrender.exe was not produced' }
+          Write-Output ("built: {0}" -f $exe.FullName)
+
+      - name: Confirm no build outputs were committed
+        run: |
+          $dirty = git status --porcelain
+          if ($dirty) {
+            Write-Output $dirty
+            throw 'working tree is dirty after the build; check .gitignore'
+          }
+
+  pure-libs-wasm-gc:
+    name: 纯 MoonBit 包 (wasm-gc, Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit toolchain (latest)
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain versions
+        run: moon version --all
+
+      - name: moon check (wasm-gc)
+        run: moon check --target wasm-gc
+
+      - name: moon test (wasm-gc)
+        run: moon test --target wasm-gc

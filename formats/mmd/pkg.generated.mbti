@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "PingGuoMiaoMiao/LunarRender/formats/mmd"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse(Bytes) -> PmxModel?
+
+// Errors
+
+// Types and methods
+#derive(@debug.Debug)
+pub(all) struct PmxMaterial {
+  texture_index : Int32
+  first_index : Int32
+  index_count : Int32
+  diffuse_r : Float
+  diffuse_g : Float
+  diffuse_b : Float
+  diffuse_a : Float
+}
+pub fn PmxMaterial::to_repr(Self) -> @debug.Repr
+
+#derive(@debug.Debug)
+pub(all) struct PmxModel {
+  vertex_count : Int32
+  index_count : Int32
+  texture_count : Int32
+  positions_normals_uv : FixedArray[Float]
+  indices : FixedArray[Int32]
+  materials : Array[PmxMaterial]
+}
+pub fn PmxModel::render_vertex_count(Self) -> Int32
+pub fn PmxModel::render_vertices(Self) -> FixedArray[Float]
+pub fn PmxModel::render_vertices_normalized(Self, Double, Double, Double, Double) -> FixedArray[Float]
+pub fn PmxModel::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

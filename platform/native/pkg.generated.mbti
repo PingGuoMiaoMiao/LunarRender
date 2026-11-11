@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "PingGuoMiaoMiao/LunarRender/platform/native"
+
+// Values
+pub fn file_exists(String) -> Bool
+
+pub fn file_read(String) -> Bytes
+
+pub fn image_decode_rgba(String) -> Bytes
+
+pub fn window_create(Int32, Int32) -> Bool
+
+pub fn window_cursor_delta_x() -> Double
+
+pub fn window_cursor_delta_y() -> Double
+
+pub fn window_destroy() -> Unit
+
+pub fn window_framebuffer_height() -> Int32
+
+pub fn window_framebuffer_width() -> Int32
+
+pub fn window_key_down(Int32) -> Bool
+
+pub fn window_mouse_button_down(Int32) -> Bool
+
+pub fn window_poll_events() -> Unit
+
+pub fn window_should_close() -> Bool
+
+pub fn window_swap_buffers() -> Unit
+
+pub fn window_time_seconds() -> Double
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

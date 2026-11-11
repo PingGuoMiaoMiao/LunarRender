@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "PingGuoMiaoMiao/LunarRender/renderer"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum AlphaMode {
+  Opaque
+  Blend
+}
+
+pub(all) struct FrameData {
+  view_projection : FixedArray[Float]
+  viewport_width : Int32
+  viewport_height : Int32
+}
+pub fn FrameData::valid(Self) -> Bool
+
+pub(all) struct MaterialData {
+  texture : TextureHandle?
+  tint : FixedArray[Float]
+  alpha_mode : AlphaMode
+}
+pub fn MaterialData::valid(Self) -> Bool
+
+pub(all) struct MaterialHandle {
+  id : Int32
+}
+pub fn MaterialHandle::valid(Self) -> Bool
+
+pub(all) struct MeshData {
+  vertices : FixedArray[Float]
+  vertex_count : Int32
+  floats_per_vertex : Int32
+  material : MaterialHandle?
+}
+pub fn MeshData::valid(Self) -> Bool
+
+pub(all) struct MeshHandle {
+  id : Int32
+}
+pub fn MeshHandle::valid(Self) -> Bool
+
+pub(all) struct TextureData {
+  width : Int32
+  height : Int32
+  rgba : Bytes
+}
+pub fn TextureData::valid(Self) -> Bool
+
+pub(all) struct TextureHandle {
+  id : Int32
+}
+pub fn TextureHandle::valid(Self) -> Bool
+
+// Type aliases
+
+// Traits

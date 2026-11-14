@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $thirdPartyBuild = Join-Path $repoRoot 'third_party\build'
+$examples = @('triangle', 'textured_cube', 'multi_mesh')
 
 $moonCommand = Get-Command moon -ErrorAction Stop
 $cmakeCommand = Get-Command cmake -ErrorAction Stop
@@ -33,6 +34,16 @@ foreach ($line in $devEnvironment) {
   }
 }
 
+# Local development links the core module from the repository root; the file is
+# gitignored and consumers of the published package do not need it.
+$workspaceFile = Join-Path $repoRoot 'moon.work'
+if (!(Test-Path -LiteralPath $workspaceFile -PathType Leaf)) {
+  # Written without a BOM: the workspace reader rejects one.
+  $workspaceText = "members = [`n  `".`",`n  `"..`",`n]`n"
+  [IO.File]::WriteAllText($workspaceFile, $workspaceText, (New-Object Text.UTF8Encoding($false)))
+  Write-Output "Created local workspace: $workspaceFile"
+}
+
 & $cmakeCommand.Source -S $repoRoot -B $thirdPartyBuild -G 'Visual Studio 17 2022' -A x64 -DBUILD_SHARED_LIBS=OFF
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
@@ -50,12 +61,17 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
-& $moonCommand.Source -C $repoRoot build --target native --release 'cmd/lunarrender'
-if ($LASTEXITCODE -ne 0) {
-  exit $LASTEXITCODE
+
+foreach ($example in $examples) {
+  & $moonCommand.Source -C $repoRoot build --target native --release "examples/$example"
+  if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+  }
 }
 
 $runtimeResolver = Join-Path $repoRoot 'scripts\resolve-runtime.ps1'
-$runtimeExecutable = & $runtimeResolver -RepoRoot $repoRoot
-Write-Output ("LunarRender executable: {0}" -f $runtimeExecutable)
+foreach ($example in $examples) {
+  $runtimeExecutable = & $runtimeResolver -RepoRoot $repoRoot -Example $example
+  Write-Output ("LunarRender example '{0}': {1}" -f $example, $runtimeExecutable)
+}
 exit 0

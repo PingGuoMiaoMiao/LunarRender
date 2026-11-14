@@ -1,0 +1,18 @@
+supported_targets = "native"
+
+import {
+  "PingGuoMiaoMiao/LunarRender/renderer",
+  "PingGuoMiaoMiao/LunarRenderNative/backend/opengl",
+  "PingGuoMiaoMiao/LunarRenderNative/examples/support",
+  "PingGuoMiaoMiao/LunarRenderNative/platform/native",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "native": {
+      "cc-link-flags": "third_party/build/Release/lunarrender_glad.lib third_party/build/glfw/src/Release/glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib",
+    },
+  },
+)

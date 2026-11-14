@@ -8,11 +8,6 @@ const WindowHeight : Int = 540
 const KeyEscape : Int = 256
 
 ///|
-fn identity_matrix() -> FixedArray[Float] {
-  FixedArray::makei(16, index => if index % 5 == 0 { 1.0 } else { 0.0 })
-}
-
-///|
 fn checkerboard_texture() -> @renderer.TextureData {
   let pixels : Array[Byte] = []
   let alpha : Int = 255
@@ -94,69 +89,68 @@ fn demo_mesh() -> @renderer.MeshData {
 }
 
 ///|
+/// Column-major 4x4 multiply. The row loop is unrolled so that each column of
+/// `right` is read once: the result is one allocation plus 64 multiply-adds
+/// with no inner-loop index arithmetic or repeated bounds checks.
 fn mat4_mul(
   left : FixedArray[Float],
   right : FixedArray[Float],
 ) -> FixedArray[Float] {
   let result : FixedArray[Float] = FixedArray::make(16, 0.0)
   for column = 0; column < 4; column = column + 1 {
-    for row = 0; row < 4; row = row + 1 {
-      let mut value : Float = 0.0
-      for k = 0; k < 4; k = k + 1 {
-        value = value + left[k * 4 + row] * right[column * 4 + k]
-      }
-      result[column * 4 + row] = value
-    }
+    let base = column * 4
+    let r0 = right[base]
+    let r1 = right[base + 1]
+    let r2 = right[base + 2]
+    let r3 = right[base + 3]
+    result[base] = left[0] * r0 + left[4] * r1 + left[8] * r2 + left[12] * r3
+    result[base + 1] = left[1] * r0 +
+      left[5] * r1 +
+      left[9] * r2 +
+      left[13] * r3
+    result[base + 2] = left[2] * r0 +
+      left[6] * r1 +
+      left[10] * r2 +
+      left[14] * r3
+    result[base + 3] = left[3] * r0 +
+      left[7] * r1 +
+      left[11] * r2 +
+      left[15] * r3
   }
   result
 }
 
 ///|
-fn rotation_x(angle : Double) -> FixedArray[Float] {
-  let result = identity_matrix()
-  let cosine = Float::from_double(@stdmath.cos(angle))
-  let sine = Float::from_double(@stdmath.sin(angle))
-  result[5] = cosine
-  result[6] = sine
-  result[9] = -sine
-  result[10] = cosine
-  result
-}
+/// Reused across frames: the projection only depends on the viewport aspect
+/// ratio, and the model-view matrix is composed in place instead of being
+/// built from four temporary matrices every frame.
+let perspective_cache : FixedArray[Float] = FixedArray::make(16, 0.0)
 
 ///|
-fn rotation_y(angle : Double) -> FixedArray[Float] {
-  let result = identity_matrix()
-  let cosine = Float::from_double(@stdmath.cos(angle))
-  let sine = Float::from_double(@stdmath.sin(angle))
-  result[0] = cosine
-  result[2] = -sine
-  result[8] = sine
-  result[10] = cosine
-  result
-}
+let perspective_aspect : FixedArray[Double] = FixedArray::make(1, -1.0)
 
 ///|
-fn translation(x : Float, y : Float, z : Float) -> FixedArray[Float] {
-  let result = identity_matrix()
-  result[12] = x
-  result[13] = y
-  result[14] = z
-  result
-}
+let model_view_scratch : FixedArray[Float] = FixedArray::make(16, 0.0)
 
 ///|
-fn perspective(aspect : Double) -> FixedArray[Float] {
-  let near = 0.1
-  let far = 100.0
-  let fov = @stdmath.PI * 70.0 / 180.0
-  let focal = 1.0 / @stdmath.tan(fov / 2.0)
-  let result : FixedArray[Float] = FixedArray::make(16, 0.0)
-  result[0] = Float::from_double(focal / aspect)
-  result[5] = Float::from_double(focal)
-  result[10] = Float::from_double((far + near) / (near - far))
-  result[11] = -1.0
-  result[14] = Float::from_double(2.0 * far * near / (near - far))
-  result
+fn cached_perspective(aspect : Double) -> FixedArray[Float] {
+  if perspective_aspect[0] != aspect {
+    perspective_aspect[0] = aspect
+    let near = 0.1
+    let far = 100.0
+    let fov = @stdmath.PI * 70.0 / 180.0
+    let focal = 1.0 / @stdmath.tan(fov / 2.0)
+    let matrix = perspective_cache
+    for index = 0; index < 16; index = index + 1 {
+      matrix[index] = 0.0
+    }
+    matrix[0] = Float::from_double(focal / aspect)
+    matrix[5] = Float::from_double(focal)
+    matrix[10] = Float::from_double((far + near) / (near - far))
+    matrix[11] = -1.0
+    matrix[14] = Float::from_double(2.0 * far * near / (near - far))
+  }
+  perspective_cache
 }
 
 ///|
@@ -164,12 +158,35 @@ fn demo_frame(time : Double, width : Int, height : Int) -> @renderer.FrameData {
   let safe_height = if height > 0 { height } else { 1 }
   let safe_width = if width > 0 { width } else { 1 }
   let aspect = safe_width.to_double() / safe_height.to_double()
-  let model = mat4_mul(rotation_y(time * 0.7), rotation_x(time * 0.35))
-  let view = translation(0.0, 0.0, -3.2)
-  let view_model = mat4_mul(view, model)
-  let view_projection = mat4_mul(perspective(aspect), view_model)
+  let angle_y = time * 0.7
+  let angle_x = time * 0.35
+  let cosine_y = @stdmath.cos(angle_y)
+  let sine_y = @stdmath.sin(angle_y)
+  let cosine_x = @stdmath.cos(angle_x)
+  let sine_x = @stdmath.sin(angle_x)
+  // view_projection = perspective * translate(0, 0, -3.2) * Ry * Rx.
+  // The rotations and the translation are composed directly here (see the
+  // "demo_frame matches the matrix helpers" test for the cross-check), so a
+  // frame only allocates the result and performs one 4x4 multiply.
+  let matrix = model_view_scratch
+  matrix[0] = Float::from_double(cosine_y)
+  matrix[1] = 0.0
+  matrix[2] = Float::from_double(-sine_y)
+  matrix[3] = 0.0
+  matrix[4] = Float::from_double(sine_y * sine_x)
+  matrix[5] = Float::from_double(cosine_x)
+  matrix[6] = Float::from_double(cosine_y * sine_x)
+  matrix[7] = 0.0
+  matrix[8] = Float::from_double(sine_y * cosine_x)
+  matrix[9] = Float::from_double(-sine_x)
+  matrix[10] = Float::from_double(cosine_y * cosine_x)
+  matrix[11] = 0.0
+  matrix[12] = 0.0
+  matrix[13] = 0.0
+  matrix[14] = -3.2
+  matrix[15] = 1.0
   @renderer.FrameData::{
-    view_projection,
+    view_projection: mat4_mul(cached_perspective(aspect), matrix),
     viewport_width: width,
     viewport_height: height,
   }
@@ -243,8 +260,18 @@ fn main {
     shutdown_after_upload_failure(renderer, true, true, texture_handle, material_handle)
     return
   }
-  println("LunarRender: textured cube example started")
   let self_test = self_test_mode()
+  if self_test {
+    // Uploading an existing handle again takes the in-place buffer reuse path
+    // (no new VAO/VBO), so the smoke test covers it as well.
+    if !renderer.upload_mesh(mesh_handle, demo_mesh()) {
+      println("LunarRender: demo mesh re-upload failed")
+      shutdown_after_upload_failure(renderer, true, true, texture_handle, material_handle)
+      return
+    }
+    println("LunarRender: mesh re-upload reuse ok")
+  }
+  println("LunarRender: textured cube example started")
   let start_time = @native.window_time_seconds()
   while !@native.window_should_close() && !@native.window_key_down(KeyEscape) &&
     (!self_test || @native.window_time_seconds() - start_time < 1.0) {

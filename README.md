@@ -1,22 +1,14 @@
 # LunarRender
 
-LunarRender 是一个使用 MoonBit 构建的跨后端实时渲染运行时。它把通用渲染数据、窗口平台和图形 API 后端分开，供游戏、可视化工具和模型预览程序使用。
+LunarRender 是一个与后端无关的 MoonBit 渲染数据与格式模块。它定义可验证的网格、纹理、材质和帧数据，也提供纯 MoonBit 的 MMD/PMX 格式解析；它不创建窗口、不调用 OpenGL，也不包含游戏逻辑。
 
-当前首个后端是 Windows native、GLFW 3.4、GLAD 2.0.8 和 OpenGL 3.3 Core。
-
-## 当前内容
-
-- 纯 MoonBit `renderer` 网格/帧数据接口。
-- Windows GLFW 窗口、输入、时间和文件/图片读取。
-- OpenGL 3.3 Core Shader、VAO、VBO、网格上传和销毁。
-- 由 MoonBit 生成 8×8 RGBA 棋盘纹理、材质和 36 顶点旋转立方体示例程序 `cmd/lunarrender`。
-- 独立的可选 `formats/mmd` PMX 解析模块。
-
-## 兼容性与验证
+Windows OpenGL 实现位于同一仓库的 [`native`](native/README.md) 模块，包名为 `PingGuoMiaoMiao/LunarRenderNative`。
 
 [![CI](https://github.com/PingGuoMiaoMiao/LunarRender/actions/workflows/ci.yml/badge.svg)](https://github.com/PingGuoMiaoMiao/LunarRender/actions/workflows/ci.yml)
 
-2026-11-11 使用官方最新工具链完成兼容性检查，`moon version --all` 记录如下：
+## 兼容性与验证
+
+2026-11 使用官方最新工具链验证，`moon version --all` 记录如下：
 
 ```text
 moon    0.1.20261104 (940aa18 2026-11-04)
@@ -27,137 +19,71 @@ moonrun 0.1.20261104 (940aa18 2026-11-04)
 | 检查项 | 命令 | 结果 |
 | --- | --- | --- |
 | 类型检查 | `moon check --target native` | 通过，0 warning |
-| native 测试 | `moon test --target native` | 23/23 通过 |
-| 纯 MoonBit 包（wasm-gc） | `moon test --target wasm-gc` | 14/14 通过 |
-| Release 构建 | `moon build --target native --release cmd/lunarrender` | 通过 |
-| 核心示例 | `lunarrender.exe --self-test` | 窗口 960×540、OpenGL 3.3.0，纹理/材质/网格上传与销毁日志完整 |
-
-本次为适配新工具链所做的源码变更：
-
-- `formats/mmd`：`derive(Debug)` 迁移为 `#derive(Debug)`，并按编译器提示补充
-  `pub extend ... with @debug.Debug::{to_repr}`；`moon.pkg` 显式导入
-  `moonbitlang/core/debug`。
-- `formats/mmd/mmd_test.mbt`：黑盒测试改用 `@mmd.parse`（新工具链不再隐式导入本包）。
+| 核心模块测试（native） | `moon test --target native` | 14/14 通过 |
+| 核心模块测试（wasm-gc） | `moon test --target wasm-gc` | 14/14 通过 |
+| native 模块（workspace，含核心包） | `cd native; moon test --target native` | 25/25 通过 |
+| native 三个示例 | `native/scripts/self-test.ps1` | 全部通过 |
 
 平台与版本限制：
 
-- 运行示例（正常窗口或 `--self-test`）需要 Windows 10/11 x64、桌面会话和支持
-  OpenGL 3.3 Core 的驱动；没有桌面/GPU 的 CI 只做构建与测试，不运行窗口。
-- `renderer` 和 `formats/mmd` 是纯 MoonBit 包，可在 `wasm-gc` 等后端检查与测试；
-  `backend/opengl`、`platform/native` 只声明 `supported_targets = "native"`。
-- 第三方 GLFW 3.4 / GLAD 2.0.8 以源码形式存放在 `third_party/`，由 CMake 3.20+
-  和 VS 2022 MSVC 构建；本机另外用 CMake 4.4.2 实测配置与构建通过。
-- 只验证当前工具链（moon 0.1.20261104 / moonc v0.10.20）。升级工具链后请重新执行
-  上表的检查项。
+- 核心模块只需要 MoonBit 工具链，可在 `native`、`wasm-gc` 等后端检查与测试。
+- Windows 窗口、OpenGL 3.3 Core、MSVC 和 CMake 只属于 [`native`](native/README.md) 模块。
+- 本仓库只验证上表列出的工具链版本；升级工具链后请重新执行这些检查。
 
-CI（`.github/workflows/ci.yml`）在每次 push / PR 上运行：`windows-latest` 安装最新
-MoonBit 工具链、构建 GLFW/GLAD 静态库，并执行 `moon check`、`moon test` 和 Release
-构建；`ubuntu-latest` 对纯 MoonBit 包执行 `wasm-gc` 检查与测试。
+CI（`.github/workflows/ci.yml`）在每次 push / PR 上运行：`ubuntu-latest` 检查并测试核心模块（native 与 wasm-gc），`windows-latest` 构建静态库、检查并测试 native 模块、构建三个示例并校验产物。
 
-## 环境要求
+## 使用核心模块
 
-- Windows 10/11 x64。
-- Visual Studio 2022，安装 MSVC C/C++ 工作负载。
-- CMake 3.20 或更高版本。
-- MoonBit 工具链（2026-11 验证版本：moon 0.1.20261104 / moonc v0.10.20）。
-- 支持 OpenGL 3.3 Core 的显卡驱动。
-
-## 安装
-
-1. 安装 MoonBit 工具链，并确认 `moon --version` 可以在 PowerShell 中运行。
-2. 使用 Visual Studio Installer 安装 Visual Studio 2022 的 MSVC C/C++ 工作负载。
-3. 安装 CMake 3.20 或更高版本，并确认 `cmake --version` 可以运行。
-4. 克隆本仓库并进入项目根目录：
+发布版本为 `0.2.1`。在其他 MoonBit 项目中执行：
 
 ```powershell
-git clone https://github.com/PingGuoMiaoMiao/LunarRender.git
-cd LunarRender
+moon add PingGuoMiaoMiao/LunarRender@0.2.1
 ```
 
-5. 按下面的“构建”步骤生成 GLFW、GLAD 和 LunarRender native 程序。
+然后在 `moon.pkg` 中导入 `PingGuoMiaoMiao/LunarRender/renderer` 或 `PingGuoMiaoMiao/LunarRender/formats/mmd`。核心模块只输出数据，具体绘制后端由消费者决定。
 
-## 构建
-
-在仓库根目录执行：
+## 核心模块检查
 
 ```powershell
-cmake -S . -B third_party/build -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
-cmake --build third_party/build --config Release
+moon fmt --check
 moon check --target native
 moon test --target native
-moon build --target native --release cmd/lunarrender
+moon check --target wasm-gc
+moon test --target wasm-gc
+moon package --list
 ```
 
-也可以使用：
+本地同时开发核心与 native 模块时，`native/moon.work`（只含 `.` 与 `..`，不提交）把两个模块连成 workspace；`native/scripts/build.ps1` 会在缺失时自动创建它。
 
-```powershell
-.\scripts\build.ps1
-```
+## 性能
 
-构建产物路径会根据 MoonBit 是否处于临时 workspace 自动变化。使用解析脚本获取唯一的 Release 可执行文件：
+核心模块本身只有数据与解析，性能记录见 [docs/performance.md](docs/performance.md)。2026-11 的算法优化集中在 native 后端的资源查找与每帧矩阵路径：
 
-```powershell
-$exe = .\scripts\resolve-runtime.ps1
-& $exe
-```
-
-## 运行
-
-```powershell
-$exe = .\scripts\resolve-runtime.ps1
-& $exe
-```
-
-示例窗口显示带程序生成棋盘材质的旋转立方体。按 `Esc` 退出。窗口变化使用 GLFW framebuffer 像素尺寸更新 `glViewport`。运行日志会记录窗口创建、OpenGL 后端版本、纹理/材质/网格上传和反向销毁顺序。
-
-自动化验证可以使用 `--self-test`，窗口运行约一秒后按正常顺序退出：
-
-```powershell
-$exe = .\scripts\resolve-runtime.ps1
-& $exe --self-test
-```
-
-## 公共接口
-
-`renderer.MeshData` 第一版每个顶点使用 6 个 Float：
-
-```text
-position.xyz, uv.xy, shade
-```
-
-`renderer.FrameData` 使用 16 个 Float 的列主序视图投影矩阵，并携带当前 framebuffer 的正整数宽高。
-
-渲染资源使用独立的 `MeshHandle`、`TextureHandle` 和 `MaterialHandle`。`TextureData` 固定为严格的 RGBA8 字节，`MaterialData` 可引用纹理并声明 `Opaque` 或 `Blend`。OpenGL 后端的 `Renderer` 负责校验引用、上传、删除和绘制资源槽位。
+| 路径 | 优化前 | 优化后 | 倍数 |
+| --- | --- | --- | --- |
+| 一帧的 CPU 提交开销（256 个网格） | 43.9 µs | 1.79 µs | 24.5× |
+| 句柄 key → 资源槽位查找 | 133.6 ns | 2.62 ns | 51× |
+| 每帧视图投影矩阵 | 1.04 µs | 228 ns | 4.5× |
 
 ## 目录
 
 ```text
-renderer/              通用纯 MoonBit 数据
-backend/opengl/        OpenGL 3.3 Core 后端
-platform/native/       Windows GLFW 平台层
-formats/mmd/           可选 PMX 格式解析
-cmd/lunarrender/       旋转纹理立方体示例
-third_party/           GLFW、GLAD 和本地构建目录
-docs/                  设计和实施记录
-scripts/               构建与运行脚本
+renderer/       纯 MoonBit 渲染数据类型和验证
+formats/mmd/    纯 MoonBit PMX/MMD 格式解析
+native/         Windows native 模块、OpenGL 后端、示例和构建脚本
+docs/           兼容性检查、性能记录和项目计划
+scripts/        发布辅助脚本
 ```
 
-## 申请材料
+## 边界
 
-项目申请书草稿位于 [`PROJECT_PROPOSAL.md`](PROJECT_PROPOSAL.md)。其中没有填写申请人、指导教师、经费、院系或学校等未提供的信息。
+LunarRender 不拥有世界、玩家、重力、碰撞、物品栏、命令、存档或联网状态；这些属于游戏组合层。OpenGL 只是 `LunarRenderNative` 的首个后端，不是核心模块的公共边界。
 
 ## 维护记录
 
-- [docs/maintenance-2026-11.md](docs/maintenance-2026-11.md) — 2026-11 工具链兼容性检查与修复记录（完整命令与输出）。
-
-## 第三方项目参考
-
-- [bgfx](https://github.com/bkaradzic/bgfx)：公共渲染 API 与多个后端分离。
-- [sokol](https://github.com/floooh/sokol)：轻量图形层与应用/窗口层边界。
-- [wgpu](https://github.com/gfx-rs/wgpu)：核心接口、硬件抽象和具体后端的分层。
-- [ClassiCube](https://github.com/ClassiCube/ClassiCube)：小型 Minecraft 风格客户端的工程参考。
-- [MoonBit FFI 文档](https://docs.moonbitlang.com/en/latest/language/ffi.html)。
+- [docs/maintenance-2026-11.md](docs/maintenance-2026-11.md) — 2026-11 工具链兼容性检查与修复记录。
+- [docs/performance.md](docs/performance.md) — 性能特征、测量方法与本轮算法优化。
 
 ## 许可证
 
-本项目使用 [MIT License](LICENSE)。
+MIT，见 [`LICENSE`](LICENSE)。

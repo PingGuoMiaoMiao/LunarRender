@@ -48,3 +48,28 @@ test "demo frame uses a sixteen-value identity matrix" {
 test "self test mode is controlled by an explicit argument" {
   assert_false(self_test_mode())
 }
+
+///|
+test "demo_frame composes the same matrix as the matrix helpers" {
+  let time = 1.234
+  let aspect = 1280.0 / 720.0
+  let model = mat4_mul(rotation_y(time * 0.7), rotation_x(time * 0.35))
+  let view_model = mat4_mul(translation(0.0, 0.0, -3.2), model)
+  let expected = mat4_mul(perspective(aspect), view_model)
+  let actual = demo_frame(time, 1280, 720).view_projection
+  for index = 0; index < 16; index = index + 1 {
+    let delta = if actual[index] < expected[index] {
+      expected[index] - actual[index]
+    } else {
+      actual[index] - expected[index]
+    }
+    assert_true(delta < 0.000001)
+  }
+}
+
+///|
+test "demo_frame follows the aspect ratio for its projection" {
+  let wide = demo_frame(0.0, 1280, 720).view_projection[0]
+  let square = demo_frame(0.0, 720, 720).view_projection[0]
+  assert_true(wide < square)
+}

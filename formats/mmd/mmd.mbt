@@ -200,8 +200,9 @@ fn clamp_unit(value : Float) -> Float {
 }
 
 ///|
-fn push_model_vertex(
-  output : Array[Float],
+fn write_model_vertex(
+  output : FixedArray[Float],
+  base : Int,
   model : PmxModel,
   vertex_index : Int,
   material : PmxMaterial,
@@ -232,41 +233,78 @@ fn push_model_vertex(
       v.to_double() * MmdAtlasTileSizeMinusOne
     ) /
     MmdAtlasHeight
-  output.push(model.positions_normals_uv[source])
-  output.push(model.positions_normals_uv[source + 1])
-  output.push(model.positions_normals_uv[source + 2])
-  output.push(model.positions_normals_uv[source + 3])
-  output.push(model.positions_normals_uv[source + 4])
-  output.push(model.positions_normals_uv[source + 5])
-  output.push(Float::from_double(atlas_u))
-  output.push(Float::from_double(atlas_v))
-  output.push(material.diffuse_r)
-  output.push(material.diffuse_g)
-  output.push(material.diffuse_b)
-  output.push(material.diffuse_a)
+  output[base] = model.positions_normals_uv[source]
+  output[base + 1] = model.positions_normals_uv[source + 1]
+  output[base + 2] = model.positions_normals_uv[source + 2]
+  output[base + 3] = model.positions_normals_uv[source + 3]
+  output[base + 4] = model.positions_normals_uv[source + 4]
+  output[base + 5] = model.positions_normals_uv[source + 5]
+  output[base + 6] = Float::from_double(atlas_u)
+  output[base + 7] = Float::from_double(atlas_v)
+  output[base + 8] = material.diffuse_r
+  output[base + 9] = material.diffuse_g
+  output[base + 10] = material.diffuse_b
+  output[base + 11] = material.diffuse_a
   true
 }
 
 ///|
-pub fn PmxModel::render_vertices(self : PmxModel) -> FixedArray[Float] {
-  let output : Array[Float] = []
-  for material in self.materials {
-    let mut i = material.first_index
-    let end = material.first_index + material.index_count
-    while i < end && i < self.indices.length() {
-      let vertex_index = self.indices[i]
-      if !push_model_vertex(output, self, vertex_index, material) {
-        return FixedArray::make(0, 0.0)
+/// Counts the vertices `render_vertices` would emit without building the
+/// interleaved buffer, so the caller can size one allocation exactly.
+fn render_vertex_slots(model : PmxModel) -> Int {
+  let mut total = 0
+  let index_length = model.indices.length()
+  for material in model.materials {
+    let start = material.first_index
+    let end = if start + material.index_count > index_length {
+      index_length
+    } else {
+      start + material.index_count
+    }
+    let mut i = start
+    while i < end {
+      let vertex_index = model.indices[i]
+      if vertex_index < 0 || vertex_index >= model.vertex_count {
+        return 0
       }
+      total += 1
       i += 1
     }
   }
-  FixedArray::makei(output.length(), i => output[i])
+  total
+}
+
+///|
+pub fn PmxModel::render_vertices(self : PmxModel) -> FixedArray[Float] {
+  let slots = render_vertex_slots(self)
+  let output : FixedArray[Float] = FixedArray::make(slots * 12, 0.0)
+  if slots == 0 {
+    return output
+  }
+  let mut cursor = 0
+  for material in self.materials {
+    let start = material.first_index
+    let end = if start + material.index_count > self.indices.length() {
+      self.indices.length()
+    } else {
+      start + material.index_count
+    }
+    let mut i = start
+    while i < end {
+      let vertex_index = self.indices[i]
+      if !write_model_vertex(output, cursor, self, vertex_index, material) {
+        return FixedArray::make(0, 0.0)
+      }
+      cursor += 12
+      i += 1
+    }
+  }
+  output
 }
 
 ///|
 pub fn PmxModel::render_vertex_count(self : PmxModel) -> Int {
-  self.render_vertices().length() / 12
+  render_vertex_slots(self)
 }
 
 ///|
@@ -390,8 +428,16 @@ pub fn parse(bytes : Bytes) -> PmxModel? {
   if !cursor.valid || vertex_count < 0 || vertex_count > 2000000 {
     return None
   }
-  let positions_normals_uv : Array[Float] = []
-  for _ in 0..<vertex_count {
+  // Every PMX vertex stores 8 float32 values before its weight and edge data,
+  // so a count larger than the file allows is rejected before allocating.
+  if vertex_count > bytes.length() / 32 {
+    return None
+  }
+  let positions_normals_uv : FixedArray[Float] = FixedArray::make(
+    vertex_count * 8,
+    0.0,
+  )
+  for vertex = 0; vertex < vertex_count; vertex = vertex + 1 {
     let x = cursor.read_f32()
     let y = cursor.read_f32()
     let z = cursor.read_f32()
@@ -408,22 +454,26 @@ pub fn parse(bytes : Bytes) -> PmxModel? {
       return None
     }
     ignore(cursor.read_f32())
-    positions_normals_uv.push(x)
-    positions_normals_uv.push(y)
-    positions_normals_uv.push(z)
-    positions_normals_uv.push(normal_x)
-    positions_normals_uv.push(normal_y)
-    positions_normals_uv.push(normal_z)
-    positions_normals_uv.push(u)
-    positions_normals_uv.push(v)
+    let base = vertex * 8
+    positions_normals_uv[base] = x
+    positions_normals_uv[base + 1] = y
+    positions_normals_uv[base + 2] = z
+    positions_normals_uv[base + 3] = normal_x
+    positions_normals_uv[base + 4] = normal_y
+    positions_normals_uv[base + 5] = normal_z
+    positions_normals_uv[base + 6] = u
+    positions_normals_uv[base + 7] = v
   }
   let index_count = cursor.read_i32()
   if !cursor.valid || index_count < 0 || index_count > 6000000 {
     return None
   }
-  let indices : Array[Int] = []
-  for _ in 0..<index_count {
-    indices.push(cursor.read_vertex_index(cursor.vertex_index_size))
+  if index_count * cursor.vertex_index_size > bytes.length() {
+    return None
+  }
+  let indices : FixedArray[Int] = FixedArray::make(index_count, 0)
+  for index = 0; index < index_count; index = index + 1 {
+    indices[index] = cursor.read_vertex_index(cursor.vertex_index_size)
   }
   let texture_count = cursor.read_i32()
   if !cursor.valid || texture_count < 0 || texture_count > 4096 {
@@ -487,10 +537,8 @@ pub fn parse(bytes : Bytes) -> PmxModel? {
     vertex_count,
     index_count,
     texture_count,
-    positions_normals_uv: FixedArray::makei(positions_normals_uv.length(), i => {
-      positions_normals_uv[i]
-    }),
-    indices: FixedArray::makei(indices.length(), i => indices[i]),
+    positions_normals_uv,
+    indices,
     materials,
   })
 }

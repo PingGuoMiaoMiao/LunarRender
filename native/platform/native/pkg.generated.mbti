@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "PingGuoMiaoMiao/LunarRender/platform/native"
+package "PingGuoMiaoMiao/LunarRenderNative/platform/native"
 
 // Values
 pub fn file_exists(String) -> Bool

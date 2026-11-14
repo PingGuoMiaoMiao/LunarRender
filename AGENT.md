@@ -6,6 +6,20 @@ LunarRender 是一个使用 MoonBit 编写的跨后端实时渲染运行时。Op
 
 当前模块为 `PingGuoMiaoMiao/LunarRender@0.1.0`，默认目标为 Windows native。GLFW 3.4、GLAD 2.0.8、CMake 和 MSVC 只属于当前平台后端的构建实现。
 
+## 仓库结构（2026-11 起）
+
+仓库拆成两个 MoonBit 模块：
+
+- 仓库根目录 = `PingGuoMiaoMiao/LunarRender`：`renderer`、`formats/mmd`，纯 MoonBit。
+- `native/` = `PingGuoMiaoMiao/LunarRenderNative`：`backend/opengl`、`platform/native`、
+  `examples`、`third_party`、`scripts`、`tools`，依赖核心模块 `0.2.1`。
+
+下文提到的 `backend/`、`platform/`、`cmd/lunarrender` 写于拆分之前：实际文件现在位于
+`native/` 下，`cmd/lunarrender` 对应 `native/examples/textured_cube`。
+
+本地联调需要 `native/moon.work`（`members = [".", ".."]`，不提交），
+`native/scripts/build.ps1` 会在缺失时自动创建。
+
 ## 当前阶段
 
 当前阶段是“通用渲染运行时重构”:

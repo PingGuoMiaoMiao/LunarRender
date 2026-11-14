@@ -1,0 +1,2 @@
+# The native module is published separately; keep it out of the core package.
+native/

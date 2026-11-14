@@ -1,7 +1,7 @@
 name: CI
 
-# 持续兼容性检查：每次 push / PR 都在官方最新 MoonBit 工具链上重新构建、检查和测试。
-# 需要固定版本做二分排查时，在安装步骤前设置环境变量 MOONBIT_INSTALL_VERSION（安装脚本会读取它）。
+# 持续兼容性检查：核心模块（仓库根目录）与 native 模块分别构建、检查和测试。
+# 需要固定版本做二分排查时，在安装步骤前设置 MOONBIT_INSTALL_VERSION。
 on:
   push:
     branches: [main]
@@ -16,6 +16,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  core:
+    name: 核心模块 (MoonBit, native + wasm-gc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install MoonBit toolchain (latest)
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain versions
+        run: moon version --all
+
+      - name: moon check (native)
+        run: moon check --target native
+
+      - name: moon test (native)
+        run: moon test --target native
+
+      - name: moon check (wasm-gc)
+        run: moon check --target wasm-gc
+
+      - name: moon test (wasm-gc)
+        run: moon test --target wasm-gc
+
   native-windows:
     name: native (Windows x64, MSVC + OpenGL 后端)
     runs-on: windows-latest
@@ -49,35 +76,53 @@ jobs:
           }
           cmake --version
 
+      - name: Create local workspace (core + native)
+        # The native module depends on the core module from the same checkout;
+        # the workspace file is gitignored and must be BOM-free.
+        run: |
+          $workspace = "members = [`n  `".`",`n  `"..`",`n]`n"
+          [IO.File]::WriteAllText("$PWD\native\moon.work", $workspace, (New-Object Text.UTF8Encoding($false)))
+          Get-Content "$PWD\native\moon.work"
+
       - name: Configure CMake
         # README 里的命令固定使用 "Visual Studio 17 2022"；托管 runner 可能装的是更新的
         # Visual Studio，这里让 CMake 选择已安装的生成器，只固定 x64 平台。
         run: |
-          cmake -S . -B third_party/build -A x64 -DBUILD_SHARED_LIBS=OFF
-          Select-String -Path third_party/build/CMakeCache.txt -Pattern '^CMAKE_GENERATOR:'
+          cmake -S native -B native/third_party/build -A x64 -DBUILD_SHARED_LIBS=OFF
+          Select-String -Path native/third_party/build/CMakeCache.txt -Pattern '^CMAKE_GENERATOR:'
 
       - name: Build GLFW and GLAD static libraries
         run: |
-          cmake --build third_party/build --config Release
-          foreach ($lib in 'third_party/build/Release/lunarrender_glad.lib', 'third_party/build/glfw/src/Release/glfw3.lib') {
+          cmake --build native/third_party/build --config Release
+          foreach ($lib in 'native/third_party/build/Release/lunarrender_glad.lib', 'native/third_party/build/glfw/src/Release/glfw3.lib') {
             if (-not (Test-Path $lib)) { throw "expected static library was not produced: $lib" }
             Write-Output ("found {0}" -f $lib)
           }
 
-      - name: moon check
+      - name: moon check (native module)
+        working-directory: native
         run: moon check --target native
 
-      - name: moon test
+      - name: moon test (native module)
+        working-directory: native
         run: moon test --target native
 
-      - name: moon build (release example)
-        run: moon build --target native --release cmd/lunarrender
-
-      - name: Verify release artifact
+      - name: moon build (examples)
+        working-directory: native
         run: |
-          $exe = Get-ChildItem _build -Recurse -Filter lunarrender.exe -File | Select-Object -First 1
-          if (-not $exe) { throw 'lunarrender.exe was not produced' }
-          Write-Output ("built: {0}" -f $exe.FullName)
+          foreach ($example in 'triangle', 'textured_cube', 'multi_mesh') {
+            moon build --target native --release "examples/$example"
+            if ($LASTEXITCODE -ne 0) { throw "building $example failed" }
+          }
+
+      - name: Verify example artifacts
+        run: |
+          $root = 'native/_build/native/release/build'
+          foreach ($example in 'triangle', 'textured_cube', 'multi_mesh') {
+            $exe = Get-ChildItem $root -Recurse -Filter "$example.exe" -File | Select-Object -First 1
+            if (-not $exe) { throw "$example.exe was not produced" }
+            Write-Output ("built: {0}" -f $exe.FullName)
+          }
 
       - name: Confirm no build outputs were committed
         run: |
@@ -88,24 +133,3 @@ jobs:
             git diff -- '*.mbti'
             throw 'working tree is dirty after the build; check .gitignore or commit the regenerated pkg.generated.mbti'
           }
-
-  pure-libs-wasm-gc:
-    name: 纯 MoonBit 包 (wasm-gc, Linux)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install MoonBit toolchain (latest)
-        run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-
-      - name: Show toolchain versions
-        run: moon version --all
-
-      - name: moon check (wasm-gc)
-        run: moon check --target wasm-gc
-
-      - name: moon test (wasm-gc)
-        run: moon test --target wasm-gc

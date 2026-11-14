@@ -1,0 +1,9 @@
+supported_targets = "native"
+
+import {
+  "PingGuoMiaoMiao/LunarRender/renderer",
+  "PingGuoMiaoMiao/LunarRenderNative/backend/opengl",
+  "PingGuoMiaoMiao/LunarRenderNative/platform/native",
+  "moonbitlang/core/env",
+  "moonbitlang/core/math" @stdmath,
+}

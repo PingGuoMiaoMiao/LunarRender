@@ -6,13 +6,13 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include "resource_table.h"
+
 #define LUNARRENDER_OPENGL_MAX_MESHES 256
 #define LUNARRENDER_OPENGL_MAX_TEXTURES 256
 #define LUNARRENDER_OPENGL_MAX_MATERIALS 256
 
 typedef struct {
-  bool active;
-  int key;
   GLuint vao;
   GLuint vbo;
   int vertex_count;
@@ -20,14 +20,10 @@ typedef struct {
 } LunarrenderOpenGLMesh;
 
 typedef struct {
-  bool active;
-  int key;
   GLuint texture;
 } LunarrenderOpenGLTexture;
 
 typedef struct {
-  bool active;
-  int key;
   int texture_key;
   float tint[4];
   int alpha_mode;
@@ -45,6 +41,9 @@ static LunarrenderOpenGLTexture
     lunarrender_opengl_textures[LUNARRENDER_OPENGL_MAX_TEXTURES];
 static LunarrenderOpenGLMaterial
     lunarrender_opengl_materials[LUNARRENDER_OPENGL_MAX_MATERIALS];
+static LunarrenderResourceTable lunarrender_opengl_mesh_table;
+static LunarrenderResourceTable lunarrender_opengl_texture_table;
+static LunarrenderResourceTable lunarrender_opengl_material_table;
 
 static const char *lunarrender_opengl_vertex_shader =
     "#version 330 core\n"
@@ -105,62 +104,19 @@ static void lunarrender_opengl_clear_errors(void) {
 }
 
 static int lunarrender_opengl_find_mesh(int key) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MESHES; i++) {
-    if (lunarrender_opengl_meshes[i].active &&
-        lunarrender_opengl_meshes[i].key == key) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-static int lunarrender_opengl_find_free_mesh(void) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MESHES; i++) {
-    if (!lunarrender_opengl_meshes[i].active) {
-      return i;
-    }
-  }
-  return -1;
+  return lr_table_find(&lunarrender_opengl_mesh_table, key);
 }
 
 static int lunarrender_opengl_find_texture(int key) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_TEXTURES; i++) {
-    if (lunarrender_opengl_textures[i].active &&
-        lunarrender_opengl_textures[i].key == key) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-static int lunarrender_opengl_find_free_texture(void) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_TEXTURES; i++) {
-    if (!lunarrender_opengl_textures[i].active) {
-      return i;
-    }
-  }
-  return -1;
+  return lr_table_find(&lunarrender_opengl_texture_table, key);
 }
 
 static int lunarrender_opengl_find_material(int key) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MATERIALS; i++) {
-    if (lunarrender_opengl_materials[i].active &&
-        lunarrender_opengl_materials[i].key == key) {
-      return i;
-    }
-  }
-  return -1;
+  return lr_table_find(&lunarrender_opengl_material_table, key);
 }
 
-static int lunarrender_opengl_find_free_material(void) {
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MATERIALS; i++) {
-    if (!lunarrender_opengl_materials[i].active) {
-      return i;
-    }
-  }
-  return -1;
-}
-
+/* Drops the GPU objects of a mesh; the resource table entry is removed by the
+ * caller so that a failed upload can reuse the same slot. */
 static void lunarrender_opengl_release_mesh(LunarrenderOpenGLMesh *mesh) {
   if (mesh->vbo != 0) {
     glDeleteBuffers(1, &mesh->vbo);
@@ -170,8 +126,6 @@ static void lunarrender_opengl_release_mesh(LunarrenderOpenGLMesh *mesh) {
     glDeleteVertexArrays(1, &mesh->vao);
     mesh->vao = 0;
   }
-  mesh->active = false;
-  mesh->key = 0;
   mesh->vertex_count = 0;
   mesh->material_key = -1;
 }
@@ -182,14 +136,10 @@ static void lunarrender_opengl_release_texture(
     glDeleteTextures(1, &texture->texture);
     texture->texture = 0;
   }
-  texture->active = false;
-  texture->key = 0;
 }
 
 static void lunarrender_opengl_release_material(
     LunarrenderOpenGLMaterial *material) {
-  material->active = false;
-  material->key = 0;
   material->texture_key = -1;
   material->tint[0] = 1.0f;
   material->tint[1] = 1.0f;
@@ -198,10 +148,33 @@ static void lunarrender_opengl_release_material(
   material->alpha_mode = 0;
 }
 
+static void lunarrender_opengl_reset_slots(void) {
+  lr_table_init(&lunarrender_opengl_mesh_table, LUNARRENDER_OPENGL_MAX_MESHES);
+  lr_table_init(
+      &lunarrender_opengl_texture_table,
+      LUNARRENDER_OPENGL_MAX_TEXTURES);
+  lr_table_init(
+      &lunarrender_opengl_material_table,
+      LUNARRENDER_OPENGL_MAX_MATERIALS);
+  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MESHES; i++) {
+    lunarrender_opengl_meshes[i].vao = 0;
+    lunarrender_opengl_meshes[i].vbo = 0;
+    lunarrender_opengl_meshes[i].vertex_count = 0;
+    lunarrender_opengl_meshes[i].material_key = -1;
+  }
+  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_TEXTURES; i++) {
+    lunarrender_opengl_textures[i].texture = 0;
+  }
+  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MATERIALS; i++) {
+    lunarrender_opengl_release_material(&lunarrender_opengl_materials[i]);
+  }
+}
+
 int32_t lunarrender_opengl_init(void) {
   if (lunarrender_opengl_initialized) {
     return 1;
   }
+  lunarrender_opengl_reset_slots();
   if (gladLoadGL((GLADloadfunc)glfwGetProcAddress) == 0) {
     fprintf(stderr, "LunarRender OpenGL init failed: GLAD load failed\n");
     return 0;
@@ -273,19 +246,17 @@ int32_t lunarrender_opengl_upload_texture(
     fprintf(stderr, "LunarRender OpenGL texture upload rejected: invalid data\n");
     return 0;
   }
-  int index = lunarrender_opengl_find_texture(key);
-  if (index < 0) {
-    index = lunarrender_opengl_find_free_texture();
-  }
-  if (index < 0) {
+  int slot = lr_table_acquire(&lunarrender_opengl_texture_table, key);
+  if (slot < 0) {
     fprintf(stderr, "LunarRender OpenGL texture upload rejected: slots full\n");
     return 0;
   }
-  lunarrender_opengl_release_texture(&lunarrender_opengl_textures[index]);
-  LunarrenderOpenGLTexture *texture = &lunarrender_opengl_textures[index];
+  LunarrenderOpenGLTexture *texture = &lunarrender_opengl_textures[slot];
+  lunarrender_opengl_release_texture(texture);
   lunarrender_opengl_clear_errors();
   glGenTextures(1, &texture->texture);
   if (texture->texture == 0) {
+    lr_table_remove(&lunarrender_opengl_texture_table, slot);
     fprintf(stderr, "LunarRender OpenGL texture upload failed: texture creation\n");
     return 0;
   }
@@ -308,11 +279,10 @@ int32_t lunarrender_opengl_upload_texture(
   glBindTexture(GL_TEXTURE_2D, 0);
   if (glGetError() != GL_NO_ERROR) {
     lunarrender_opengl_release_texture(texture);
+    lr_table_remove(&lunarrender_opengl_texture_table, slot);
     fprintf(stderr, "LunarRender OpenGL texture upload failed: GPU error\n");
     return 0;
   }
-  texture->active = true;
-  texture->key = key;
   fprintf(
       stderr,
       "LunarRender OpenGL texture upload: key=%d size=%dx%d\n",
@@ -326,9 +296,10 @@ void lunarrender_opengl_remove_texture(int key) {
   if (!lunarrender_opengl_initialized) {
     return;
   }
-  int index = lunarrender_opengl_find_texture(key);
-  if (index >= 0) {
-    lunarrender_opengl_release_texture(&lunarrender_opengl_textures[index]);
+  int slot = lunarrender_opengl_find_texture(key);
+  if (slot >= 0) {
+    lunarrender_opengl_release_texture(&lunarrender_opengl_textures[slot]);
+    lr_table_remove(&lunarrender_opengl_texture_table, slot);
   }
 }
 
@@ -349,18 +320,13 @@ int32_t lunarrender_opengl_upload_material(
         texture_key);
     return 0;
   }
-  int index = lunarrender_opengl_find_material(key);
-  if (index < 0) {
-    index = lunarrender_opengl_find_free_material();
-  }
-  if (index < 0) {
+  int slot = lr_table_acquire(&lunarrender_opengl_material_table, key);
+  if (slot < 0) {
     fprintf(stderr, "LunarRender OpenGL material upload rejected: slots full\n");
     return 0;
   }
-  LunarrenderOpenGLMaterial *material = &lunarrender_opengl_materials[index];
+  LunarrenderOpenGLMaterial *material = &lunarrender_opengl_materials[slot];
   lunarrender_opengl_release_material(material);
-  material->active = true;
-  material->key = key;
   material->texture_key = texture_key;
   material->tint[0] = tint[0];
   material->tint[1] = tint[1];
@@ -380,9 +346,10 @@ void lunarrender_opengl_remove_material(int key) {
   if (!lunarrender_opengl_initialized) {
     return;
   }
-  int index = lunarrender_opengl_find_material(key);
-  if (index >= 0) {
-    lunarrender_opengl_release_material(&lunarrender_opengl_materials[index]);
+  int slot = lunarrender_opengl_find_material(key);
+  if (slot >= 0) {
+    lunarrender_opengl_release_material(&lunarrender_opengl_materials[slot]);
+    lr_table_remove(&lunarrender_opengl_material_table, slot);
   }
 }
 
@@ -404,23 +371,24 @@ int32_t lunarrender_opengl_upload_mesh(
         material_key);
     return 0;
   }
-  int index = lunarrender_opengl_find_mesh(key);
-  if (index < 0) {
-    index = lunarrender_opengl_find_free_mesh();
-  }
-  if (index < 0) {
+  int slot = lr_table_acquire(&lunarrender_opengl_mesh_table, key);
+  if (slot < 0) {
     fprintf(stderr, "LunarRender OpenGL mesh upload rejected: slots full\n");
     return 0;
   }
-  lunarrender_opengl_release_mesh(&lunarrender_opengl_meshes[index]);
-  LunarrenderOpenGLMesh *mesh = &lunarrender_opengl_meshes[index];
+  LunarrenderOpenGLMesh *mesh = &lunarrender_opengl_meshes[slot];
+  bool reused = mesh->vao != 0 && mesh->vbo != 0;
   lunarrender_opengl_clear_errors();
-  glGenVertexArrays(1, &mesh->vao);
-  glGenBuffers(1, &mesh->vbo);
-  if (mesh->vao == 0 || mesh->vbo == 0) {
+  if (!reused) {
     lunarrender_opengl_release_mesh(mesh);
-    fprintf(stderr, "LunarRender OpenGL mesh upload failed: buffer creation\n");
-    return 0;
+    glGenVertexArrays(1, &mesh->vao);
+    glGenBuffers(1, &mesh->vbo);
+    if (mesh->vao == 0 || mesh->vbo == 0) {
+      lunarrender_opengl_release_mesh(mesh);
+      lr_table_remove(&lunarrender_opengl_mesh_table, slot);
+      fprintf(stderr, "LunarRender OpenGL mesh upload failed: buffer creation\n");
+      return 0;
+    }
   }
   glBindVertexArray(mesh->vao);
   glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
@@ -429,34 +397,35 @@ int32_t lunarrender_opengl_upload_mesh(
       (GLsizeiptr)vertex_count * floats_per_vertex * (int)sizeof(float),
       vertices,
       GL_STATIC_DRAW);
-  GLsizei stride = (GLsizei)floats_per_vertex * (GLsizei)sizeof(float);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(
-      1,
-      2,
-      GL_FLOAT,
-      GL_FALSE,
-      stride,
-      (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(
-      2,
-      1,
-      GL_FLOAT,
-      GL_FALSE,
-      stride,
-      (void *)(5 * sizeof(float)));
-  glEnableVertexAttribArray(2);
+  if (!reused) {
+    GLsizei stride = (GLsizei)floats_per_vertex * (GLsizei)sizeof(float);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        1,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(
+        2,
+        1,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        (void *)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+  }
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   if (glGetError() != GL_NO_ERROR) {
     lunarrender_opengl_release_mesh(mesh);
+    lr_table_remove(&lunarrender_opengl_mesh_table, slot);
     fprintf(stderr, "LunarRender OpenGL mesh upload failed: GPU error\n");
     return 0;
   }
-  mesh->active = true;
-  mesh->key = key;
   mesh->vertex_count = vertex_count;
   mesh->material_key = material_key;
   fprintf(
@@ -472,9 +441,10 @@ void lunarrender_opengl_remove_mesh(int key) {
   if (!lunarrender_opengl_initialized) {
     return;
   }
-  int index = lunarrender_opengl_find_mesh(key);
-  if (index >= 0) {
-    lunarrender_opengl_release_mesh(&lunarrender_opengl_meshes[index]);
+  int slot = lunarrender_opengl_find_mesh(key);
+  if (slot >= 0) {
+    lunarrender_opengl_release_mesh(&lunarrender_opengl_meshes[slot]);
+    lr_table_remove(&lunarrender_opengl_mesh_table, slot);
   }
 }
 
@@ -496,47 +466,73 @@ void lunarrender_opengl_draw_frame(
         GL_FALSE,
         view_projection);
   }
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MESHES; i++) {
-    LunarrenderOpenGLMesh *mesh = &lunarrender_opengl_meshes[i];
-    if (!mesh->active || mesh->vertex_count == 0) {
+  /* Dense iteration: active[] holds exactly the live meshes, so a frame costs
+   * O(active meshes) instead of O(slot capacity). Bind state changes are also
+   * deduplicated across the batch. */
+  GLuint last_texture = 0;
+  int last_has_texture = -1;
+  int blend_enabled = 0;
+  float last_tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  int last_tint_valid = 0;
+  glActiveTexture(GL_TEXTURE0);
+  for (int position = 0;
+       position < lunarrender_opengl_mesh_table.active_count;
+       position++) {
+    int mesh_slot = lunarrender_opengl_mesh_table.active[position];
+    LunarrenderOpenGLMesh *mesh = &lunarrender_opengl_meshes[mesh_slot];
+    if (mesh->vertex_count == 0) {
       continue;
     }
-    int material_index = lunarrender_opengl_find_material(mesh->material_key);
+    int material_slot = lunarrender_opengl_find_material(mesh->material_key);
     int has_texture = 0;
     int alpha_mode = 0;
     float tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    if (material_index >= 0) {
+    GLuint texture = 0;
+    if (material_slot >= 0) {
       LunarrenderOpenGLMaterial *material =
-          &lunarrender_opengl_materials[material_index];
+          &lunarrender_opengl_materials[material_slot];
       tint[0] = material->tint[0];
       tint[1] = material->tint[1];
       tint[2] = material->tint[2];
       tint[3] = material->tint[3];
       alpha_mode = material->alpha_mode;
-      int texture_index = lunarrender_opengl_find_texture(material->texture_key);
-      if (texture_index >= 0) {
+      int texture_slot = lunarrender_opengl_find_texture(material->texture_key);
+      if (texture_slot >= 0) {
         has_texture = 1;
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(
-            GL_TEXTURE_2D,
-            lunarrender_opengl_textures[texture_index].texture);
-      } else {
-        glBindTexture(GL_TEXTURE_2D, 0);
+        texture = lunarrender_opengl_textures[texture_slot].texture;
       }
-    } else {
-      glBindTexture(GL_TEXTURE_2D, 0);
     }
-    if (lunarrender_opengl_has_texture_location >= 0) {
-      glUniform1i(lunarrender_opengl_has_texture_location, has_texture);
+    if (texture != last_texture) {
+      glBindTexture(GL_TEXTURE_2D, texture);
+      last_texture = texture;
     }
-    if (lunarrender_opengl_tint_location >= 0) {
-      glUniform4fv(lunarrender_opengl_tint_location, 1, tint);
+    if (has_texture != last_has_texture) {
+      if (lunarrender_opengl_has_texture_location >= 0) {
+        glUniform1i(lunarrender_opengl_has_texture_location, has_texture);
+      }
+      last_has_texture = has_texture;
+    }
+    if (!last_tint_valid || tint[0] != last_tint[0] ||
+        tint[1] != last_tint[1] || tint[2] != last_tint[2] ||
+        tint[3] != last_tint[3]) {
+      if (lunarrender_opengl_tint_location >= 0) {
+        glUniform4fv(lunarrender_opengl_tint_location, 1, tint);
+      }
+      last_tint[0] = tint[0];
+      last_tint[1] = tint[1];
+      last_tint[2] = tint[2];
+      last_tint[3] = tint[3];
+      last_tint_valid = 1;
     }
     if (alpha_mode == 1) {
-      glEnable(GL_BLEND);
-      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    } else {
+      if (!blend_enabled) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        blend_enabled = 1;
+      }
+    } else if (blend_enabled) {
       glDisable(GL_BLEND);
+      blend_enabled = 0;
     }
     glBindVertexArray(mesh->vao);
     glDrawArrays(GL_TRIANGLES, 0, mesh->vertex_count);
@@ -551,15 +547,27 @@ void lunarrender_opengl_shutdown(void) {
   if (!lunarrender_opengl_initialized) {
     return;
   }
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MESHES; i++) {
-    lunarrender_opengl_release_mesh(&lunarrender_opengl_meshes[i]);
+  for (int position = 0;
+       position < lunarrender_opengl_mesh_table.active_count;
+       position++) {
+    lunarrender_opengl_release_mesh(
+        &lunarrender_opengl_meshes[lunarrender_opengl_mesh_table.active[position]]);
   }
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_MATERIALS; i++) {
-    lunarrender_opengl_release_material(&lunarrender_opengl_materials[i]);
+  for (int position = 0;
+       position < lunarrender_opengl_texture_table.active_count;
+       position++) {
+    lunarrender_opengl_release_texture(
+        &lunarrender_opengl_textures
+             [lunarrender_opengl_texture_table.active[position]]);
   }
-  for (int i = 0; i < LUNARRENDER_OPENGL_MAX_TEXTURES; i++) {
-    lunarrender_opengl_release_texture(&lunarrender_opengl_textures[i]);
+  for (int position = 0;
+       position < lunarrender_opengl_material_table.active_count;
+       position++) {
+    lunarrender_opengl_release_material(
+        &lunarrender_opengl_materials
+             [lunarrender_opengl_material_table.active[position]]);
   }
+  lunarrender_opengl_reset_slots();
   if (lunarrender_opengl_program != 0) {
     glDeleteProgram(lunarrender_opengl_program);
     lunarrender_opengl_program = 0;

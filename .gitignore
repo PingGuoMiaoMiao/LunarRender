@@ -1,5 +1,5 @@
 _build/
-third_party/build/
+native/third_party/build/
 saves/
 artifacts/
 .tools/
